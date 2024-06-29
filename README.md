@@ -28,3 +28,7 @@ python src/extract.py input/my_model.mdl
 ```
 
 If all goes well, an .obj file will appear in `output`, which can be loaded into Blender.
+
+## Disclaimer
+
+This is for educational purposes only, please be mindful. I do not claim responsibility for any misuse of this software. I'm just exploring this stuff on my own because I like the games and I want to learn more about how they work.
