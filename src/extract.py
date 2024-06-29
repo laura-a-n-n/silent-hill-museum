@@ -73,6 +73,11 @@ def extract_mdl_data(filename: str):
 def write_to_obj(mdl_data, path: str):
     vertices = mdl_data['vertices']
     triangle_indices = mdl_data['triangle_indices']
+
+    directory = os.path.dirname(path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     with open(path, 'w') as f:
         for i, v in enumerate(vertices):
             (x, y, z, w, _, __) = v
