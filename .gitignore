@@ -1,0 +1,8 @@
+.vscode
+.venv
+venv
+input/
+output/
+*.mdl
+*.obj
+*.mtl
