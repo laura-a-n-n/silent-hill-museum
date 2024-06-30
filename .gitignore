@@ -6,3 +6,5 @@ output/
 *.mdl
 *.obj
 *.mtl
+*.dds
+.DS_Store
