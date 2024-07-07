@@ -58,8 +58,9 @@ Unlike the geometry data, I've tested the texture extraction on characters.
 
 ## TODO
 
- - [ ] Implement transparency for textures. (This is the entire difference between each of the [DXT texture compression](https://en.wikipedia.org/wiki/S3_Texture_Compression) methods, and I'm just ignoring all of it at the moment.)
  - [ ] Fix occasional strange geometry in obj files.
+ - [ ] Implement transparency for textures. (This is the entire difference between each of the [DXT texture compression](https://en.wikipedia.org/wiki/S3_Texture_Compression) methods, and I'm just ignoring all of it at the moment.)
+ - [ ] Texture extraction may be a little slow on some machines. Can probably fix by actually using Numpy (I reluctantly added it as a dependency for this)
  - [ ] Possibly investigate PS2 file structure. (low priority for me)
 
 ## Disclaimer
