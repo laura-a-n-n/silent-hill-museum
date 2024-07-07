@@ -54,14 +54,14 @@ If all goes well, you should see a .png file appear in `output`, which can be us
 
 ![x_keypurple](https://github.com/laura-a-n-n/silent-hill-explorer/assets/100505614/3ff1fca9-193d-4d0d-8686-edd19d11a5ae)
 
-Unlike the geometry data, I've tested the texture extraction on characters.
+By default, the textures will be vertically flipped, and this is how they should be used as textures. If you don't like that, you can use `--unflip`, e.g. `python3 src/texture.py input/my_model.mdl --unflip`.
 
 ## TODO
 
- - [ ] Fix occasional strange geometry in obj files.
- - [ ] Implement transparency for textures. (This is the entire difference between each of the [DXT texture compression](https://en.wikipedia.org/wiki/S3_Texture_Compression) methods, and I'm just ignoring all of it at the moment.)
- - [ ] Texture extraction may be a little slow on some machines. Can probably fix by actually using Numpy (I reluctantly added it as a dependency for this)
- - [ ] Possibly investigate PS2 file structure. (low priority for me)
+- [ ] Fix occasional strange geometry in obj files.
+- [ ] Implement transparency for textures. (This is the entire difference between each of the [DXT texture compression](https://en.wikipedia.org/wiki/S3_Texture_Compression) methods, and I'm just ignoring all of it at the moment.)
+- [ ] Texture extraction may be a little slow on some machines. Can probably fix by actually using Numpy (I reluctantly added it as a dependency for this)
+- [ ] Possibly investigate PS2 file structure. (low priority for me)
 
 ## Disclaimer
 
