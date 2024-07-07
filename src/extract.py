@@ -98,9 +98,9 @@ def write_to_obj(mdl_data, path: str):
                 # remove degenerate triangles
                 continue
             if i % 2 == 0:
-                f.write(f'f {v0} {v1} {v2}\n')
+                f.write(f'f {v0}/{v0} {v1}/{v1} {v2}/{v2}\n')
             else:
-                f.write(f'f {v2} {v1} {v0}\n')
+                f.write(f'f {v2}/{v2} {v1}/{v1} {v0}/{v0}\n')
             true_face_count += 1
         f.write('\n')
         print(f"Face count: {true_face_count}")
