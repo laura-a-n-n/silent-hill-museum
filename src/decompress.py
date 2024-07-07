@@ -37,9 +37,11 @@ def decompress_color_row(blocks, color0, color1):
     colors = [
         rgb565_to_rgb888(color0),
         rgb565_to_rgb888(color1),
-        lerp_3d(rgb565_to_rgb888(color0), rgb565_to_rgb888(color1), 1 / 3),
-        lerp_3d(rgb565_to_rgb888(color0), rgb565_to_rgb888(color1), 2 / 3),
     ]
+    colors.extend([
+        lerp_3d(colors[0], colors[1], 1 / 3),
+        lerp_3d(colors[0], colors[1], 2 / 3),
+    ])
     return [colors[block] for block in blocks]
 
 def unpack_color_row(color_row):
