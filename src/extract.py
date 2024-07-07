@@ -4,14 +4,15 @@
 import argparse
 import os
 import struct
+from common import validate_and_exec
+
+MESH_DATA_MAGIC = b'\x03\x00\xff\xff'
+GEOMETRY_HEADER_OFFSET = 0x80
+TRIANGLE_INDEX_OFFSET = 0x10
+VERTEX_CHUNK_SIZE = 0x30
+UV_OFFSET = 0x14
 
 def extract_mdl_data(filename: str):
-    MESH_DATA_MAGIC = b'\x03\x00\xff\xff'
-    GEOMETRY_HEADER_OFFSET = 0x80
-    TRIANGLE_INDEX_OFFSET = 0x10
-    VERTEX_CHUNK_SIZE = 0x30
-    UV_OFFSET = 0x14
-
     with open(filename, 'rb') as file:
         file_content = file.read()
         start_index = file_content.find(MESH_DATA_MAGIC)
@@ -105,29 +106,14 @@ def write_to_obj(mdl_data, path: str):
         f.write('\n')
         print(f"Face count: {true_face_count}")
 
+def handle_file(filename: str, _args):
+    print(f"Reading file: {filename}")
+    mdl_data = extract_mdl_data(filename)
 
-def validate_path(path):
-    # Check if file or folder exists
-    if os.path.isdir(path):
-        return True
-    if not os.path.isfile(path):
-        raise argparse.ArgumentTypeError(
-            f"{path} does not exist or is not a valid file.")
-
-    # Check file extension
-    if not path.lower().endswith('.mdl'):
-        raise argparse.ArgumentTypeError(
-            f"{path} should have a .mdl extension.")
-    return True
-
-def handle_file(filename: str):
     filename_base, extension = os.path.splitext(
         os.path.basename(filename))
     output_filename = f"output/{filename_base}.obj"
 
-    # Print and use the new filename
-    print(f"Reading file: {filename}")
-    mdl_data = extract_mdl_data(filename)
     write_to_obj(mdl_data, output_filename)
     print(f"Wrote model data to {output_filename}")
     return True
@@ -135,46 +121,7 @@ def handle_file(filename: str):
 def main():
     parser = argparse.ArgumentParser(description='...')
     parser.add_argument('path', help='The file or folder to process')
-
-    args = parser.parse_args()
-
-    # Validate arguments
-    try:
-        validate_path(args.path)
-    except argparse.ArgumentTypeError as e:
-        parser.error(e)
-
-    # Check if the path is a directory
-    if os.path.isdir(args.path):
-        total_files = 0
-        valid_files = 0
-        successes = 0
-        failures = []
-        # Iterate over all items in the directory
-        for item in os.listdir(args.path):
-            total_files += 1
-            item_path = os.path.join(args.path, item)
-            is_valid = False
-            try:
-                if os.path.isfile(item_path) and validate_path(item_path):
-                    valid_files += 1
-                    is_valid = True
-                    if handle_file(item_path):
-                        successes += 1
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                if is_valid:
-                    failures.append(item_path)
-                pass
-        
-        if len(failures) > 0:
-            print("The following files failed:", failures)
-        else:
-            print("Every file succeeded!")
-        print(f"Successfully generated assets for {successes}/{valid_files} models! ({total_files} files examined)")
-    else:
-        handle_file(args.path)
-
+    validate_and_exec(parser, handle_file, '.mdl')
 
 if __name__ == "__main__":
     main()
