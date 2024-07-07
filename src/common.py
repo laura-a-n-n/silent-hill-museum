@@ -1,7 +1,8 @@
-import argparse
 import os
+import argparse
+import traceback
 
-def validate_path(path, validation_extension=None):
+def validate_path(path: str, validation_extension=None):
     # Check if file or folder exists
     if os.path.isdir(path):
         return True
@@ -15,7 +16,7 @@ def validate_path(path, validation_extension=None):
             f"{path} should have a ${validation_extension} extension.")
     return True
 
-def validate_and_exec(parser, handle_file, validation_extension=None):
+def validate_and_exec(parser: argparse.ArgumentParser, handle_file: callable, validation_extension=None):
     args = parser.parse_args()
 
     # Validate arguments
@@ -36,13 +37,13 @@ def validate_and_exec(parser, handle_file, validation_extension=None):
             item_path = os.path.join(args.path, item)
             is_valid = False
             try:
-                if os.path.isfile(item_path) and validate_path(item_path):
+                if os.path.isfile(item_path) and validate_path(item_path, validation_extension):
                     valid_files += 1
                     is_valid = True
                     if handle_file(item_path, args):
                         successes += 1
             except Exception as e:
-                print(f"An error occurred: {e}")
+                print(traceback.format_exc())
                 if is_valid:
                     failures.append(item_path)
                 pass
