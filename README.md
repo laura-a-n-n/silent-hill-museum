@@ -1,6 +1,10 @@
 # Silent Hill Explorer
 
-Resources for exploring Silent Hill game files. Currently only for Silent Hill 2.
+Resources for exploring Silent Hill game files. Currently only for Silent Hill 2 (PC).
+
+Update to support characters coming soon!
+
+![Inu from the Dog ending of Silent Hill 2](https://github.com/user-attachments/assets/8f4ab15c-4298-44db-93f0-9b283fd4997f)
 
 ![The pizza from Silent Hill 2](pizza.png)
 
