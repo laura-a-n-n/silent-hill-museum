@@ -1,0 +1,22 @@
+name: Run Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run tests on web server
+        run: |
+          output=$(mktemp)
+          http_code=$(curl -s -w "%{http_code}" -o $output \
+            -X POST https://silenthillmuseum.org:666/run-tests -H "x-api-key: $api_key")
+          cat $output
+          rm $output
+          if [ "$http_code" != "200" ]; then
+            echo "Test run failed with status code $http_code"
+            exit 1
+          fi
+        env:
+            api_key: ${{ secrets.TEST_API_KEY }}
