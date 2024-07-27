@@ -1,0 +1,24 @@
+diff --git a/node_modules/@types/three/examples/jsm/animation/MMDPhysics.d.ts b/node_modules/@types/three/examples/jsm/animation/MMDPhysics.d.ts
+index bcab5f7..23345e9 100644
+--- a/node_modules/@types/three/examples/jsm/animation/MMDPhysics.d.ts
++++ b/node_modules/@types/three/examples/jsm/animation/MMDPhysics.d.ts
+@@ -1,4 +1,4 @@
+-import { Bone, Euler, Matrix4, Object3D, Quaternion, SkinnedMesh, Vector3 } from "three";
++import { Bone, Euler, Matrix4, MeshBasicMaterial, Object3D, Quaternion, SkinnedMesh, Vector3 } from "three";
+ 
+ export interface MMDPhysicsParameter {
+     unitStep?: number | undefined;
+@@ -115,10 +115,10 @@ export class Constraint {
+ }
+ 
+ export class MMDPhysicsHelper extends Object3D {
+-    mesh: THREE.SkinnedMesh;
++    mesh: SkinnedMesh;
+     physics: MMDPhysics;
+-    materials: [THREE.MeshBasicMaterial, THREE.MeshBasicMaterial, THREE.MeshBasicMaterial];
++    materials: [MeshBasicMaterial, MeshBasicMaterial, MeshBasicMaterial];
+ 
+-    constructor(mesh: THREE.SkinnedMesh, physics: MMDPhysics);
++    constructor(mesh: SkinnedMesh, physics: MMDPhysics);
+     dispose(): void;
+ }

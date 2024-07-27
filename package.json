@@ -1,0 +1,41 @@
+{
+  "name": "silent-hill-museum",
+  "description": "Explore Silent Hill models",
+  "author": "Laura Ann",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "quick-test": "QUICK=1 npm run test",
+    "ksy-all": "kaitai-struct-compiler --target all --outdir build ksy/mdl.ksy",
+    "ksy-museum": "npm run ksy-js-module && npm run compress-js && npm run ksy-d-ts",
+    "ksy-js-module": "kaitai-struct-compiler --target javascript --outdir public/js ksy/mdl.ksy",
+    "compress-js": "uglifyjs public/js/Mdl.js --compress -o public/js/mdl.min.js && rm public/js/Mdl.js",
+    "ts-ksc": "./kaitai_struct_compiler/jvm/target/universal/stage/bin/kaitai-struct-compiler --target typescript",
+    "ksy-d-ts": "npm run ts-ksc -- --outdir src/types ksy/mdl.ksy",
+    "postinstall": "patch-package"
+  },
+  "devDependencies": {
+    "@types/decode-dxt": "^1.0.3",
+    "@types/three": "^0.166.0",
+    "globby": "^14.0.2",
+    "patch-package": "^8.0.0",
+    "typescript": "^5.2.2",
+    "uglify-js": "^3.19.0",
+    "vite": "^5.3.4",
+    "vite-plugin-html": "^3.2.2",
+    "vitest": "^2.0.4"
+  },
+  "dependencies": {
+    "decode-dxt": "^1.0.1",
+    "kaitai-struct": "^0.10.0",
+    "three": "^0.166.1"
+  },
+  "peerDependencies": {
+    "iconv-lite": "^0.6.3"
+  }
+}

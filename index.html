@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <title>Silent Hill Museum</title>
+</head>
+
+<body>
+  <div id="app"></div>
+  <div id="overlay">
+    <p>silent hill model museum</p>
+    <p>
+      version <%= appVersion %>
+    </p>
+    <p><a id="open-about-modal" href="#">about this project</a></p>
+  </div>
+  <div id="blur-background"></div>
+  <div id="about-modal" class="modal">
+    <h1>what is this project?</h1>
+    <p>
+      this is a historical archive of file formats in silent hill.
+    </p>
+    <p>
+      right now, it just contains every model (.mdl) file in silent hill 2 restless dreams (pc).
+    </p>
+    <p>
+      it is inspired by
+    </p>
+    <ul>
+      <li>a love for silent hill</li>
+      <li>
+        <a href="https://noclip.website">noclip.website</a>
+      </li>
+    </ul>
+
+    <h1>is it finished?</h1>
+    <p>
+      no, there is still a lot of mystery. i would absolutely love if you can contribute
+      on <a href="https://github.com/laura-a-n-n/silent-hill-museum">github</a>.
+    </p>
+    <h1>what features are planned?</h1>
+    <p>
+      a future goal is to enable editing of these file formats, so you can import
+      edited assets into the game.
+    </p>
+    <p>
+      another goal is to add more file formats, including maps and animations,
+      and formats for other games in the silent hill series.
+    </p>
+    <!-- <p>
+      commercial use of this project is absolutely prohibited, and i do not condone
+      or take legal responsibility for anything done with it.
+    </p> -->
+    <h1>how does it work?</h1>
+    <p>
+      it parses the .mdl files directly in your browser and renders them using
+      the <a href="https://threejs.org/">three.js</a> library.
+    </p>
+    <p>
+      i've documented the vast majority of the .mdl file format by representing it in
+      <a href="https://kaitai.io">kaitai struct</a>, a declarative binary parsing
+      language.
+    </p>
+    <p>
+      the .ksy file is compiled into a javascript parser and typescript definitions,
+      allowing the kaitai js runtime to bring this theater to you.
+    </p>
+    <h1>can i use this for commercial purposes?</h1>
+    <p>do not.</p>
+    <p>
+      please adhere to konami's
+      <a href="https://eu-support.konami.com/hc/en-gb/articles/9648771731479-Copyrights-Career-Opportunities-Goodies">
+        policy on copyrighted materials</a>:
+    </p>
+    <blockquote>
+      <p>
+        Generally, Konami Digital Entertainment B.V. does not object to fans using
+        copyrighted materials for non-commercial purposes, and in a manner which does
+        not intentionally spoil the plot of a game for other players.
+      </p>
+      <p>
+        By "non-commercial" we mean that you cannot use our copyrighted material to
+        promote a product you are selling or making any profit from, like wallpapers,
+        t-shirts, skins for electronic devices, etc. nor can you use it to monetise a
+        website or a media channel.
+      </p>
+    </blockquote>
+    <h1>who made this?</h1>
+    <p>
+      right now, it's just me, <a href="https://github.com/laura-a-n-n">laura ann</a>.
+      but i couldn't have done this without the efforts of some people on the internet,
+      who i haven't talked to yet, but their resources have been invaluable:
+    </p>
+    <ul>
+      <li>
+        <a href="https://github.com/Quaker762">quaker762</a>
+        and <a href="">girianseed</a>, who published
+        <a href="https://github.com/Palm-Studios/sh2_source">sh2_source</a>,
+        a repository containing the dwarf debug symbols of silent hill 2.
+      </li>
+      <li>
+        quaker762 also published an initial
+        <a
+          href="https://github.com/Quaker762/SilentHillDatabase/blob/c1e5933a04f7878cc529fce6d02d1157b3516c3d/SH2/Files/mdl.md">
+          write-up
+        </a> of the .mdl file format.
+      </li>
+      <li>
+        <a href="https://github.com/iOrange">iorange</a>, who very recently made
+        <a href="https://github.com/iOrange/sh2tex">sh2tex</a>,
+        which is a really excellent texture extractor for silent hill 2.
+        pretty much all the work done on textures here is directly from them.
+      </li>
+      <li>
+        perdedork, who discovered
+        all this and more, many years ago. perdedork made the
+        <a href="https://www.silenthillmemories.net/sh2/modding_en.htm">
+          silent hill level viewer</a>.
+        i haven't seen the code for this viewer, but it is a really good program.
+      </li>
+      <li>
+        anyone who contributed to
+        <a href="https://github.com/elishacloud/Silent-Hill-2-Enhancements/issues/357">
+          this thread
+        </a>
+        on the <a href="https://github.com/elishacloud/Silent-Hill-2-Enhancements">
+          silent hill 2: enhanced edition repo</a>.
+      </li>
+      <li>
+        <a href="https://github.com/FrozenFish24">frozenfish24</a>, who published
+        <a href="https://github.com/FrozenFish24/SH2MapTools/">sh2maptools</a>.
+      </li>
+    </ul>
+  </div>
+  <div id="keybinds-modal" class="modal"></div>
+  <div id="disclaimer-modal" class="modal">
+    by clicking "i agree", you hold to <strong>never</strong> misuse these assets,
+    especially for commercial purposes. please see konami's
+    <a href="https://eu-support.konami.com/hc/en-gb/articles/9648771731479-Copyrights-Career-Opportunities-Goodies">
+      statement on copyrighted materials</a>:
+    <blockquote>
+      <p>
+        Generally, Konami Digital Entertainment B.V. does not object to fans using
+        copyrighted materials for non-commercial purposes, and in a manner which does
+        not intentionally spoil the plot of a game for other players.
+      </p>
+      <p>
+        By "non-commercial" we mean that you cannot use our copyrighted material to
+        promote a product you are selling or making any profit from, like wallpapers,
+        t-shirts, skins for electronic devices, etc. nor can you use it to monetise a
+        website or a media channel.
+      </p>
+    </blockquote>
+    we do not claim legal responsibility for any misuse of these assets.
+    <div class="button-holder">
+      <button id="confirm-button">i agree</button>
+      <button class="close-all-modals">i do not agree</button>
+    </div>
+  </div>
+  <p id="keybinds-note">press <kbd>k</kbd> to see keybinds</p>
+  <script src="/js/vendor/KaitaiStream.js"></script>
+  <script src="/js/Mdl.js"></script>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
