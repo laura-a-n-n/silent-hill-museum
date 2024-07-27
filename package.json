@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@types/decode-dxt": "^1.0.3",
+    "@types/node": "^20.14.12",
     "@types/three": "^0.166.0",
     "globby": "^14.0.2",
     "patch-package": "^8.0.0",
