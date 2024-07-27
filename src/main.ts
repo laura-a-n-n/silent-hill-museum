@@ -47,7 +47,12 @@ import {
   TransformControls,
   WebGL,
 } from "three/examples/jsm/Addons.js";
-import { initializeModals, onConfirm, toggleElement } from "./modals";
+import {
+  closeAllElements,
+  initializeModals,
+  onConfirm,
+  toggleElement,
+} from "./modals";
 
 const appContainer = document.getElementById("app");
 if (!(appContainer instanceof HTMLDivElement)) {
@@ -102,6 +107,11 @@ keybindManager.addKeybind(
     toggleElement("blurBackground");
   },
   "Toggle keybinds modal"
+);
+keybindManager.addKeybind(
+  "escape",
+  () => closeAllElements(),
+  "Close all modals"
 );
 
 const keybindsModal = document.getElementById("keybinds-modal");
