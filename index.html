@@ -5,6 +5,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
   <title>Silent Hill Museum</title>
+
+  <meta name="description" content="Silent Hill Museum is a historical archive of Silent Hill assets.">
+  <meta name="author" content="Laura Ann">
+  <meta name="keywords"
+    content="Silent Hill Museum, Silent Hill, Silent Hill 2, Restless Dreams, model files, historical archive, video game, Konami, file formats, 3D models">
+
+  <meta property="og:title" content="Silent Hill Museum">
+  <meta property="og:description" content="Explore the Silent Hill Museum, a historical archive of Silent Hill assets.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://silenthillmuseum.org">
+  <meta property="og:image" content="https://silenthillmuseum.com/images/screenshot.png">
+  <meta property="og:image:alt" content="A 3D render of the ominous music box from Silent Hill 2">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="canonical" href="https://silenthillmuseum.org/">
 </head>
 
 <body>
@@ -20,7 +35,7 @@
   <div id="about-modal" class="modal">
     <h1>what is this project?</h1>
     <p>
-      this is a historical archive of file formats in silent hill.
+      this is a historical archive of a file format in silent hill.
     </p>
     <p>
       right now, it just contains every model (.mdl) file in silent hill 2 restless dreams (pc).
@@ -42,7 +57,7 @@
     </p>
     <h1>what features are planned?</h1>
     <p>
-      a future goal is to enable editing of these file formats, so you can import
+      a future goal is to enable editing of the mdl format, so you can import
       edited assets into the game.
     </p>
     <p>
@@ -55,17 +70,30 @@
     </p> -->
     <h1>how does it work?</h1>
     <p>
-      it parses the .mdl files directly in your browser and renders them using
+      it parses the mdl files directly in your browser and renders them using
       the <a href="https://threejs.org/">three.js</a> library.
     </p>
     <p>
-      i've documented the vast majority of the .mdl file format by representing it in
+      i've documented the vast majority of the mdl file format by representing it in
       <a href="https://kaitai.io">kaitai struct</a>, a declarative binary parsing
       language.
     </p>
     <p>
-      the .ksy file is compiled into a javascript parser and typescript definitions,
+      the ksy file is compiled into a javascript parser and typescript definitions,
       allowing the kaitai js runtime to bring this theater to you.
+    </p>
+    <h1>how can i explore the mdl format further?</h1>
+    <p>
+      one way is to use the <a href="https://ide.kaitai.io/">kaitai ide</a>.
+      upload the
+      <a href="https://github.com/laura-a-n-n/silent-hill-museum/blob/main/ksy/mdl.ksy">ksy file</a>
+      to the ide, and also drag & drop your favorite mdl file in.
+    </p>
+    <p>
+      alternatively, if you're ok using typescript, i recommend downloading
+      the repo and checking out how
+      <a href="https://github.com/laura-a-n-n/silent-hill-museum/blob/main/src/model.ts">model.ts</a>
+      works.
     </p>
     <h1>can i use this for commercial purposes?</h1>
     <p>do not.</p>
@@ -105,7 +133,7 @@
         <a
           href="https://github.com/Quaker762/SilentHillDatabase/blob/c1e5933a04f7878cc529fce6d02d1157b3516c3d/SH2/Files/mdl.md">
           write-up
-        </a> of the .mdl file format.
+        </a> of the mdl file format.
       </li>
       <li>
         <a href="https://github.com/iOrange">iorange</a>, who very recently made
@@ -155,8 +183,17 @@
     </blockquote>
     we do not claim legal responsibility for any misuse of these assets.
     <div class="button-holder">
-      <button id="confirm-button">i agree</button>
+      <button class="confirm-button">i agree</button>
       <button class="close-all-modals">i do not agree</button>
+    </div>
+  </div>
+  <div id="content-warning-modal" class="modal">
+    <p>some content may be considered violent or cruel.</p>
+    <p>are you sure you want to continue?</p>
+    <p>(confirmations will be saved)</p>
+    <div class="button-holder">
+      <button class="confirm-button">that's fine</button>
+      <button class="close-all-modals">take me back</button>
     </div>
   </div>
   <p id="keybinds-note">press <kbd>k</kbd> to see keybinds</p>

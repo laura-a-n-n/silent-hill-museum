@@ -18,7 +18,12 @@ import MuseumState, {
   secondaryFolderNames,
 } from "./objects/MuseumState";
 import KeybindManager from "./objects/KeybindManager";
-import { fitCameraToSelection, saveArrayBuffer, saveString } from "./utils";
+import {
+  exportCanvas,
+  fitCameraToSelection,
+  saveArrayBuffer,
+  saveString,
+} from "./utils";
 import GUI from "three/examples/jsm/libs/lil-gui.module.min.js";
 import {
   WebGLRenderer,
@@ -40,6 +45,7 @@ import {
   ACESFilmicToneMapping,
   PMREMGenerator,
   Clock,
+  Vector3,
 } from "three";
 import {
   GLTFExporter,
@@ -51,7 +57,7 @@ import {
   closeAllElements,
   initializeModals,
   onConfirm,
-  toggleElement,
+  toggleWithBackground,
 } from "./modals";
 
 const appContainer = document.getElementById("app");
@@ -59,13 +65,13 @@ if (!(appContainer instanceof HTMLDivElement)) {
   throw Error("The app container was not found!");
 }
 
-initializeModals();
-
 if (!WebGL.isWebGL2Available()) {
   // TODO
   appContainer.innerHTML = "WebGL is not supported on this browser.";
   throw Error("WebGL is not available on this browser.");
 }
+
+initializeModals();
 
 const state = new MuseumState();
 const keybindManager = new KeybindManager();
@@ -101,10 +107,14 @@ keybindManager.addKeybind(
   "Bone translate mode"
 );
 keybindManager.addKeybind(
+  "0",
+  () => (params["Render This Frame"] = true),
+  "Render the current frame as PNG"
+);
+keybindManager.addKeybind(
   "k",
   () => {
-    toggleElement("keybindsModal");
-    toggleElement("blurBackground");
+    toggleWithBackground("keybindsModal");
   },
   "Toggle keybinds modal"
 );
@@ -112,6 +122,11 @@ keybindManager.addKeybind(
   "escape",
   () => closeAllElements(),
   "Close all modals"
+);
+keybindManager.addKeybind(
+  "c",
+  () => console.log(controls.target, camera.position),
+  "Camera log"
 );
 
 const keybindsModal = document.getElementById("keybinds-modal");
@@ -137,9 +152,9 @@ const params = {
   Filename: state.file,
   "Next File": () => state.nextFile(),
   "Previous File": () => state.previousFile(),
+  "Render View": () => (params["Render This Frame"] = true),
   "Export to GLTF": () => {
-    toggleElement("blurBackground", true);
-    toggleElement("disclaimerModal", true);
+    toggleWithBackground("disclaimerModal", true);
     onConfirm(exportModel);
   },
 
@@ -160,6 +175,9 @@ const params = {
   "Alpha Test": 0.01,
   "Model Opacity": 1.0,
   "Render Side": "FrontSide",
+
+  "Render This Frame": false,
+  "Content Warning Accepted": localStorage.getItem("contentWarningAccepted"),
 };
 const RenderSideMap = {
   DoubleSide,
@@ -189,6 +207,25 @@ const preferredParams: { [File in MuseumInputFile]?: Partial<typeof params> } =
       "Render Side": "BackSide",
     },
   };
+const cameraFix: {
+  [File in MuseumInputFile]?: {
+    cameraPosition: Vector3;
+    controlsTarget: Vector3;
+  };
+} = {
+  "bos.mdl": {
+    controlsTarget: new Vector3(
+      -58.17799245068679,
+      -626.735509717446,
+      -169.58143575897614
+    ),
+    cameraPosition: new Vector3(
+      12.92254067950762,
+      -573.3331804019333,
+      943.5324793077427
+    ),
+  },
+};
 const defaultParams = Object.assign(
   {},
   ...Object.values(preferredParams).map((o) =>
@@ -228,6 +265,7 @@ let folderInput = mainFolderInput;
 const fileInput = dataGuiFolder.add(params, "Filename");
 dataGuiFolder.add(params, "Next File");
 dataGuiFolder.add(params, "Previous File");
+dataGuiFolder.add(params, "Render View");
 dataGuiFolder.add(params, "Export to GLTF");
 fileInput.onFinishChange((file) => {
   state.file = file;
@@ -305,18 +343,28 @@ appContainer.appendChild(renderer.domElement);
 Object3D.DEFAULT_UP.multiplyScalar(-1); // -Y is up
 const camera = new PerspectiveCamera(75, width / height, 0.1, 100);
 camera.position.z = 5;
-const onWindowResize = (initial = false) => {
+
+const prefersReducedMotion = !!window.matchMedia(
+  `(prefers-reduced-motion: reduce)`
+);
+const onWindowResize = () => {
   const width = appContainer.offsetWidth;
   const height = appContainer.offsetHeight;
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
-  if (initial && width < 700) {
-    gui.folders.forEach((f) => f.close());
+  if (!gui._closed && width < 700) {
+    gui.close();
+  } else if (width > 700 && gui._closed) {
+    if (prefersReducedMotion) {
+      gui.openAnimated();
+    } else {
+      gui.open();
+    }
   }
 };
-onWindowResize(true);
-window.addEventListener("resize", () => onWindowResize(false));
+onWindowResize();
+window.addEventListener("resize", onWindowResize);
 
 const scene = new Scene();
 const pmremGenerator = new PMREMGenerator(renderer);
@@ -357,9 +405,9 @@ function exportModel() {
 
 let lastFile = state.file;
 const render = () => {
+  const filename = state.file.split("/")[1];
   if (lastFile !== state.file) {
     lastFile = state.file;
-    const filename = state.file.split("/")[1];
     if (filename in preferredParams) {
       Object.assign(
         params,
@@ -471,7 +519,13 @@ const render = () => {
 
     scene.add(group);
     if (primaryGeometry !== undefined || secondaryGeometry !== undefined) {
+      const fix = cameraFix[filename as MuseumInputFile];
       fitCameraToSelection(camera, controls, [group]);
+      if (fix !== undefined) {
+        controls.target.copy(fix.controlsTarget);
+        camera.position.copy(fix.cameraPosition);
+        controls.update();
+      }
     }
 
     if (state.file === "favorites/org.mdl") {
@@ -526,6 +580,11 @@ const render = () => {
       }
 
       renderer.render(scene, camera);
+
+      if (params["Render This Frame"]) {
+        exportCanvas(appContainer, state.file + ".png");
+        params["Render This Frame"] = false;
+      }
     }
     renderer.setAnimationLoop(animate);
   });

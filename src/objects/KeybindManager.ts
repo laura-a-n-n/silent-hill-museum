@@ -17,7 +17,7 @@ export default class KeybindManager {
   private keybindMap = new Map<KeyCombination, KeyboardCallback>();
   private descriptionMap = new Map<KeyCombination, string>();
   private inputEnabled = true;
-  private debugMode = true;
+  private debugMode = false;
 
   constructor() {
     window.addEventListener("keydown", (event: KeyboardEvent) =>

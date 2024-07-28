@@ -158,7 +158,7 @@ export const mod = (n: number, m: number) => {
 };
 
 // Below from https://github.com/mrdoob/js/blob/master/examples/misc_exporter_gltf.html
-export const save = (blob: Blob, filename: string) => {
+export const save = (blobOrHref: Blob | string, filename: string) => {
   let link = document.getElementById(
     "__blob-anchor"
   ) as HTMLAnchorElement | null;
@@ -168,7 +168,10 @@ export const save = (blob: Blob, filename: string) => {
     link.style.display = "none";
     document.body.appendChild(link);
   }
-  link.href = URL.createObjectURL(blob);
+  link.href =
+    typeof blobOrHref === "string"
+      ? blobOrHref
+      : URL.createObjectURL(blobOrHref);
   link.download = filename;
   link.click();
 };
@@ -177,6 +180,21 @@ export const saveString = (text: string, filename: string) => {
 };
 export const saveArrayBuffer = (buffer: ArrayBuffer, filename: string) => {
   save(new Blob([buffer], { type: "application/octet-stream" }), filename);
+};
+
+export const exportCanvas = (
+  container: HTMLElement | null,
+  filename: string
+) => {
+  if (!(container instanceof HTMLElement)) {
+    throw Error("Container was not valid");
+  }
+  const canvas = container.querySelector("canvas");
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    throw Error("Could not find canvas element!");
+  }
+  const base64 = canvas.toDataURL();
+  save(base64, filename);
 };
 
 export const createChristmasLights = (

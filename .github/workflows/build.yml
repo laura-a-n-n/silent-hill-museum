@@ -1,0 +1,17 @@
+name: Run Build
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install
+        run: npm install
+
+      - name: Build
+        run: npm run build

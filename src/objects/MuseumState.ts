@@ -1,5 +1,6 @@
 // super simple state container + constants
 
+import { showContentWarningModal } from "../modals";
 import { mod } from "../utils";
 
 export default class MuseumState {
@@ -103,14 +104,24 @@ export default class MuseumState {
     return this.scenario;
   }
 
-  public setFolderName(name: string, fileIndex?: number) {
+  public setFolderName(
+    name: string,
+    fileIndex?: number,
+    overrideWarning = false
+  ) {
     if (!(name in this.folderStructure)) {
       return;
     }
+    if (!overrideWarning && name !== "favorites") {
+      showContentWarningModal(() => this.setFolderName(name, fileIndex, true));
+      return;
+    }
     this.folderName = name as MuseumInputFolder;
-    this.fileIndex =
-      fileIndex ??
-      (this.scenario === "Main Scenario" && name === "item" ? PIZZA_INDEX : 0);
+    let preferredIndex =
+      (this.scenario === "Main Scenario" &&
+        (name === "item" ? PIZZA_INDEX : name === "wp" ? CSAW_INDEX : 0)) ||
+      0;
+    this.fileIndex = fileIndex ?? preferredIndex;
     this.onUpdate?.();
   }
 
@@ -455,6 +466,7 @@ export const folderStructure = {
   nse: ["nse.mdl", "nse_st.mdl"],
 } as const;
 export const PIZZA_INDEX = folderStructure.item.indexOf("piz.mdl");
+export const CSAW_INDEX = folderStructure.wp.indexOf("wp_csaw.mdl");
 export const ORG_INDEX = folderStructure.favorites.indexOf("org.mdl");
 export const folderNames = [
   "agl",

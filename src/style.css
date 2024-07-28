@@ -95,7 +95,7 @@ button:hover {
 }
 .modal button:focus,
 .modal button:focus-visible {
-  outline: 1px solid #ad343e;
+  outline: 1px solid #fdfdff9a;
   transition: border-color 0.25s;
 }
 

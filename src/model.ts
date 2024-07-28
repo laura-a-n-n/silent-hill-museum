@@ -26,8 +26,6 @@ export const MaterialView = {
 export type MaterialType = (typeof MaterialView)[keyof typeof MaterialView];
 
 export const createGeometry = (model: SilentHillModel, primitiveType = 0) => {
-  console.log("Parsing new model!");
-
   const geometry = new BufferGeometry();
 
   if (primitiveType === 0) {

@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Run tests on web server
+      - name: Request Test
         run: |
           output=$(mktemp)
           http_code=$(curl -s -w "%{http_code}" -o $output \

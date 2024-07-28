@@ -5,6 +5,7 @@ const uiDescriptions: {
   disclaimerModal: { open: false, element: undefined },
   blurBackground: { open: false, element: undefined },
   keybindsModal: { open: false, element: undefined },
+  contentWarningModal: { open: false, element: undefined },
 };
 
 export const addUiElement = (
@@ -36,13 +37,17 @@ export const initializeModals = () => {
   if (!(keybindsModal instanceof HTMLDivElement)) {
     throw Error("Did not find the keybinds modal!");
   }
+  const contentWarningModal = document.getElementById("content-warning-modal");
+  if (!(contentWarningModal instanceof HTMLDivElement)) {
+    throw Error("Did not find the content warning modal!");
+  }
   addUiElement("aboutModal", aboutModal);
   addUiElement("blurBackground", blurBackground);
   addUiElement("disclaimerModal", disclaimerModal);
   addUiElement("keybindsModal", keybindsModal);
+  addUiElement("contentWarningModal", contentWarningModal);
   openAboutModal.addEventListener("click", () => {
-    toggleElement("aboutModal", true);
-    toggleElement("blurBackground", true);
+    toggleWithBackground("aboutModal", true);
   });
   blurBackground.addEventListener("click", () => closeAllElements());
   const closeButtons = document.querySelectorAll(".close-all-modals");
@@ -57,29 +62,66 @@ export const closeAllElements = () => {
   }
 };
 
+export const toggleWithBackground = (
+  elementKey: keyof typeof uiDescriptions,
+  state?: boolean
+) => {
+  toggleElement("blurBackground", state);
+  toggleElement(elementKey, state);
+};
+
 export const toggleElement = (
   elementKey: keyof typeof uiDescriptions,
   state?: boolean
 ) => {
+  if (
+    elementKey === "blurBackground" &&
+    uiDescriptions["blurBackground"].open &&
+    state !== false
+  ) {
+    // If ui element is already open, close it
+    closeAllElements();
+  }
   uiDescriptions[elementKey].open = state ?? !uiDescriptions[elementKey].open;
   const modalElement = uiDescriptions[elementKey].element;
   if (!modalElement) {
     return;
   }
-  modalElement.style.display = uiDescriptions[elementKey].open
-    ? "block"
-    : "none";
+  const open = uiDescriptions[elementKey].open;
+  modalElement.style.display = open ? "block" : "none";
+  if (open) {
+    modalElement.classList.add("active");
+  } else {
+    modalElement.classList.remove("active");
+  }
 };
 
 export const onConfirm = (confirmCallback: () => void) => {
-  const confirmButton = document.getElementById("confirm-button");
+  const confirmButton = document.querySelector(".modal.active .confirm-button");
   if (!(confirmButton instanceof HTMLButtonElement)) {
     throw Error("Did not find confirm button!");
   }
+  if (confirmButton.getAttribute("eventListenerAdded")) {
+    return;
+  }
   function onConfirm() {
     confirmCallback();
-    confirmButton?.removeEventListener("pointerdown", onConfirm);
+    confirmButton?.removeEventListener("click", onConfirm);
+    confirmButton?.removeAttribute("eventListenerAdded");
     closeAllElements();
   }
-  confirmButton.addEventListener("pointerdown", onConfirm);
+  confirmButton.setAttribute("eventListenerAdded", "true");
+  confirmButton.addEventListener("click", onConfirm);
+};
+
+export const showContentWarningModal = (confirmCallback: () => void) => {
+  if (!localStorage.getItem("contentWarningAccepted")) {
+    toggleWithBackground("contentWarningModal", true);
+    onConfirm(() => {
+      localStorage.setItem("contentWarningAccepted", "true");
+      confirmCallback();
+    });
+  } else {
+    confirmCallback();
+  }
 };
