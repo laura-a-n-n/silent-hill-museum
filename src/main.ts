@@ -1,4 +1,3 @@
-import "./style.css";
 import {
   bindSkeletonToGeometry,
   bindSkeletonToSecondaryGeometry,
@@ -46,6 +45,7 @@ import {
   PMREMGenerator,
   Clock,
   Vector3,
+  WebGL1Renderer,
 } from "three";
 import {
   GLTFExporter,
@@ -56,6 +56,7 @@ import {
 import {
   closeAllElements,
   initializeModals,
+  isAnyElementOpenOtherThan,
   onConfirm,
   showNotSupportedModal,
   toggleWithBackground,
@@ -68,9 +69,20 @@ if (!(appContainer instanceof HTMLDivElement)) {
 
 initializeModals();
 
-if (!WebGL.isWebGL2Available()) {
-  showNotSupportedModal();
+if (localStorage.getItem("visited") === null) {
+  toggleWithBackground("aboutModal", true);
+  localStorage.setItem("visited", "true");
+}
+
+let glVersion = 0;
+if (!WebGL.isWebGLAvailable()) {
+  showNotSupportedModal(glVersion);
   throw Error("WebGL is not available on this browser.");
+} else if (!WebGL.isWebGL2Available()) {
+  glVersion = 1;
+  showNotSupportedModal(glVersion);
+} else {
+  glVersion = 2;
 }
 
 const state = new MuseumState();
@@ -113,9 +125,9 @@ keybindManager.addKeybind(
 );
 keybindManager.addKeybind(
   "k",
-  () => {
-    toggleWithBackground("keybindsModal");
-  },
+  () =>
+    !isAnyElementOpenOtherThan("keybindsModal") &&
+    toggleWithBackground("keybindsModal"),
   "Toggle keybinds modal"
 );
 keybindManager.addKeybind(
@@ -152,20 +164,20 @@ const params = {
   Filename: state.file,
   "Next File": () => state.nextFile(),
   "Previous File": () => state.previousFile(),
-  "Render View": () => (params["Render This Frame"] = true),
+  "Save Image": () => (params["Render This Frame"] = true),
   "Export to GLTF": () => {
     toggleWithBackground("disclaimerModal", true);
     onConfirm(exportModel);
   },
 
-  "Auto-Rotate": false,
+  "Auto-Rotate": true,
   "Bone Controls": false,
   "Controls Mode": "rotate",
   "Selected Bone": 0,
 
   "Render Primary": true,
-  "Render Secondary": true,
-  "Skeleton Mode": true,
+  "Render Extra": true,
+  "Skeleton Mode": glVersion === 2,
   "Visualize Skeleton": false,
 
   "Render Mode": MaterialView.Textured as string,
@@ -186,7 +198,7 @@ const RenderSideMap = {
 };
 /**
  * Preferred params for models that are best viewed with certain settings.
- * May be needed if certain properties haven't been reverse-engineered yet.
+ * May be needed as certain properties haven't been reverse-engineered yet.
  */
 const preferredParams: { [File in MuseumInputFile]?: Partial<typeof params> } =
   {
@@ -205,6 +217,10 @@ const preferredParams: { [File in MuseumInputFile]?: Partial<typeof params> } =
     },
     "rhhh_mar.mdl": {
       "Render Side": "BackSide",
+    },
+    "x_keygate.mdl": {
+      Transparency: false,
+      "Alpha Test": 0,
     },
   };
 const cameraFix: {
@@ -265,7 +281,7 @@ let folderInput = mainFolderInput;
 const fileInput = dataGuiFolder.add(params, "Filename");
 dataGuiFolder.add(params, "Next File");
 dataGuiFolder.add(params, "Previous File");
-dataGuiFolder.add(params, "Render View");
+dataGuiFolder.add(params, "Save Image");
 dataGuiFolder.add(params, "Export to GLTF");
 fileInput.onFinishChange((file) => {
   state.file = file;
@@ -286,7 +302,8 @@ controlsGuiFolder.add(params, "Bone Controls").onChange((value) => {
 const boneSelector = controlsGuiFolder
   .add(params, "Selected Bone", 0, 1, 1)
   .onChange(() => transformControls.removeFromParent())
-  .hide();
+  .hide()
+  .listen();
 const controlsModeInput = controlsGuiFolder
   .add(params, "Controls Mode", ["translate", "rotate"])
   .listen()
@@ -294,16 +311,20 @@ const controlsModeInput = controlsGuiFolder
 
 const geometryFolder = gui.addFolder("Geometry");
 geometryFolder.add(params, "Render Primary");
-geometryFolder.add(params, "Render Secondary");
-geometryFolder.add(params, "Skeleton Mode");
-
-geometryFolder.add(params, "Visualize Skeleton").onChange((on) => {
-  if (on && params["Model Opacity"] > 0.5) {
-    params["Model Opacity"] = 0.5;
-  } else if (!on) {
-    params["Model Opacity"] = 1.0;
-  }
-});
+geometryFolder.add(params, "Render Extra");
+if (glVersion === 2) {
+  geometryFolder.add(params, "Skeleton Mode");
+  geometryFolder.add(params, "Visualize Skeleton").onChange((on) => {
+    if (on && params["Model Opacity"] > 0.5) {
+      params["Model Opacity"] = 0.5;
+    } else if (!on) {
+      params["Model Opacity"] = 1.0;
+    }
+  });
+} else {
+  controlsGuiFolder.hide();
+  geometryFolder.add(params, "Auto-Rotate");
+}
 geometryFolder.onFinishChange(() => render());
 
 const textureFolder = gui.addFolder("Texture");
@@ -335,7 +356,7 @@ textureFolder
 
 const width = appContainer.offsetWidth;
 const height = appContainer.offsetHeight;
-const renderer = new WebGLRenderer();
+const renderer = glVersion === 2 ? new WebGLRenderer() : new WebGL1Renderer();
 renderer.setSize(width, height);
 renderer.setPixelRatio(window.devicePixelRatio);
 appContainer.appendChild(renderer.domElement);
@@ -416,11 +437,13 @@ const render = () => {
     } else {
       Object.assign(params, defaultParams);
     }
+    params["Selected Bone"] = 0;
   }
   fileInput.setValue(state.file);
   scenarioInput.setValue(state.getScenario());
   folderInput.setValue(state.getFolderName());
   loadModel(`/mdl/${state.rootFolder}/${state.file}`).then((model) => {
+    console.log("Parsed model structure", model);
     scene.clear();
     const light = new AmbientLight(
       params["Ambient Color"],
@@ -488,7 +511,7 @@ const render = () => {
       group.add(mesh);
     }
 
-    const secondaryGeometry = params["Render Secondary"]
+    const secondaryGeometry = params["Render Extra"]
       ? createGeometry(model, 1)
       : undefined;
     if (secondaryGeometry) {
@@ -535,6 +558,14 @@ const render = () => {
       modelSkeleton?.bones[8]?.rotateZ(Math.PI / 2);
     }
 
+    const maxBoneSelection = (modelSkeleton?.bones.length ?? 1) - 1;
+    boneSelector.max(maxBoneSelection);
+    if (maxBoneSelection === 0) {
+      boneSelector.hide();
+    } else if (params["Bone Controls"]) {
+      boneSelector.show();
+    }
+
     function animate() {
       const delta = clock.getDelta() * 120; // targeting 120 fps
       if (
@@ -542,22 +573,13 @@ const render = () => {
         params["Bone Controls"] &&
         transformControls.parent === null
       ) {
-        const maxSelection = modelSkeleton.bones.length - 1;
-        if (modelSkeleton.bones.length > 1) {
-          boneSelector.show();
-          boneSelector.max(maxSelection);
-        } else {
-          boneSelector.hide();
-        }
-        params["Selected Bone"] = Math.min(
-          maxSelection,
-          params["Selected Bone"]
-        );
+        transformControls.enabled = true;
         transformControls.attach(modelSkeleton.bones[params["Selected Bone"]]);
         transformControls.size = 0.5;
         scene.add(transformControls);
       } else if (transformControls.parent && !params["Bone Controls"]) {
         scene.remove(transformControls);
+        transformControls.enabled = false;
       }
       transformControls.mode = params["Controls Mode"] as
         | "translate"

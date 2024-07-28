@@ -231,7 +231,7 @@ export const createMaterial = (
             map: dataTexture,
             side: DoubleSide,
             transparent: true,
-          },
+          } as MeshStandardMaterialParameters,
           parameters
         );
         return new MeshStandardMaterial(materialParams);

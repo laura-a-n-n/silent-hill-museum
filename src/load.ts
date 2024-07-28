@@ -39,6 +39,5 @@ export const loadModel = async (url: string) => {
   }
   const model = loadModelFromBytes(bytes);
   modelCache[url] = model;
-  console.log("Succesfully parsed model structure", model);
   return model;
 };

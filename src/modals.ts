@@ -9,6 +9,8 @@ const uiDescriptions: {
   webglNotSupportedModal: { open: false, element: undefined },
 };
 
+const uiQueue: { elementKey: string; open?: boolean }[] = [];
+
 export const addUiElement = (
   elementKey: string,
   element?: HTMLDivElement,
@@ -64,10 +66,31 @@ export const initializeModals = () => {
   );
 };
 
+export const isAnyElementOpen = () => {
+  return uiDescriptions.blurBackground.open;
+};
+
+export const isAnyElementOpenOtherThan = (elementKey: string) => {
+  return isAnyElementOpen() && !uiDescriptions[elementKey].open;
+};
+
 export const closeAllElements = () => {
   for (const elementKey in uiDescriptions) {
     toggleElement(elementKey, false);
   }
+  const queued = uiQueue.pop();
+  if (queued === undefined) {
+    return;
+  }
+  toggleWithBackground(queued.elementKey, queued.open);
+};
+
+export const pushToQueue = (elementKey: string, open?: boolean) => {
+  if (!isAnyElementOpen() && !uiQueue.length) {
+    toggleWithBackground(elementKey, open);
+    return;
+  }
+  uiQueue.push({ elementKey, open });
 };
 
 export const toggleWithBackground = (
@@ -82,20 +105,16 @@ export const toggleElement = (
   elementKey: keyof typeof uiDescriptions,
   state?: boolean
 ) => {
-  if (
-    elementKey === "blurBackground" &&
-    uiDescriptions["blurBackground"].open &&
-    state !== false
-  ) {
+  const open = state ?? !uiDescriptions[elementKey].open;
+  if (elementKey === "blurBackground" && isAnyElementOpen() && open) {
     // If ui element is already open, close it
     closeAllElements();
   }
-  uiDescriptions[elementKey].open = state ?? !uiDescriptions[elementKey].open;
+  uiDescriptions[elementKey].open = open;
   const modalElement = uiDescriptions[elementKey].element;
   if (!modalElement) {
     return;
   }
-  const open = uiDescriptions[elementKey].open;
   modalElement.style.display = open ? "block" : "none";
   if (open) {
     modalElement.classList.add("active");
@@ -134,17 +153,30 @@ export const showContentWarningModal = (confirmCallback: () => void) => {
   }
 };
 
-export const showNotSupportedModal = () => {
+export const showNotSupportedModal = (glVersion = 0, queue = true) => {
   const element = uiDescriptions.webglNotSupportedModal.element;
   if (!element) {
     throw Error("Could not find support message modal!");
   }
-  if (element.innerHTML === "") {
+  if (element.innerHTML === "" && !glVersion) {
     let html = "";
     html += "<p>Sorry, WebGL is not supported in your browser :(</p>";
-    html += "<p>Please try updating your browser.</p>";
-    html += "<p>If you are on a mobile phone, try using a computer.</p>";
+    html +=
+      "<p>Please try updating your browser, or try a different device.</p>";
+    element.innerHTML = html;
+  } else if (element.innerHTML === "" && glVersion === 1) {
+    let html = "";
+    html +=
+      "<p>WebGL 2 is not supported on your browser, but you can still use this site!</p>";
+    html +=
+      "<p>Please note that you will not be able to view or export model skeletons.</p>";
+    html +=
+      "<p>To allow skeleton mode, try updating your browser or using a different device.</p>";
     element.innerHTML = html;
   }
-  toggleWithBackground("webglNotSupportedModal", true);
+  if (queue) {
+    pushToQueue("webglNotSupportedModal", true);
+  } else {
+    toggleWithBackground("webglNotSupportedModal", true);
+  }
 };

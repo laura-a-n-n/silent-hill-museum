@@ -3,7 +3,7 @@
   "description": "Explore Silent Hill models",
   "author": "Laura Ann",
   "private": true,
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -22,7 +22,7 @@
   "devDependencies": {
     "@types/decode-dxt": "^1.0.3",
     "@types/node": "^20.14.12",
-    "@types/three": "^0.166.0",
+    "@types/three": "^0.162.0",
     "globby": "^14.0.2",
     "patch-package": "^8.0.0",
     "typescript": "^5.2.2",
@@ -34,7 +34,7 @@
   "dependencies": {
     "decode-dxt": "^1.0.1",
     "kaitai-struct": "^0.10.0",
-    "three": "^0.166.1"
+    "three": "^0.162.0"
   },
   "peerDependencies": {
     "iconv-lite": "^0.6.3"

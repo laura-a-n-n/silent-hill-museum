@@ -7,15 +7,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
+
       - name: Request Test
         run: |
           output=$(mktemp)
           http_code=$(curl -s -w "%{http_code}" -o $output \
-            -X POST https://silenthillmuseum.org:666/run-tests -H "x-api-key: $api_key")
+            -X POST https://silenthillmuseum.org:666/run-tests \
+            -H "x-api-key: $api_key" \
+            -H "Content-Type: application/json" \
+            -d '{"branch": "${{ steps.extract_branch.outputs.branch }}"}')
           cat $output
           rm $output
           if [ "$http_code" != "200" ]; then
-            echo "Test run failed with status code $http_code"
             exit 1
           fi
         env:
