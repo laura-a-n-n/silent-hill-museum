@@ -57,6 +57,7 @@ import {
   closeAllElements,
   initializeModals,
   onConfirm,
+  showNotSupportedModal,
   toggleWithBackground,
 } from "./modals";
 
@@ -65,13 +66,12 @@ if (!(appContainer instanceof HTMLDivElement)) {
   throw Error("The app container was not found!");
 }
 
+initializeModals();
+
 if (!WebGL.isWebGL2Available()) {
-  // TODO
-  appContainer.innerHTML = "WebGL is not supported on this browser.";
+  showNotSupportedModal();
   throw Error("WebGL is not available on this browser.");
 }
-
-initializeModals();
 
 const state = new MuseumState();
 const keybindManager = new KeybindManager();

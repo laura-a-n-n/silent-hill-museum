@@ -6,6 +6,7 @@ const uiDescriptions: {
   blurBackground: { open: false, element: undefined },
   keybindsModal: { open: false, element: undefined },
   contentWarningModal: { open: false, element: undefined },
+  webglNotSupportedModal: { open: false, element: undefined },
 };
 
 export const addUiElement = (
@@ -41,11 +42,18 @@ export const initializeModals = () => {
   if (!(contentWarningModal instanceof HTMLDivElement)) {
     throw Error("Did not find the content warning modal!");
   }
+  const webglNotSupportedModal = document.getElementById(
+    "webgl-not-supported-modal"
+  );
+  if (!(webglNotSupportedModal instanceof HTMLDivElement)) {
+    throw Error("Did not find the support message modal!");
+  }
   addUiElement("aboutModal", aboutModal);
   addUiElement("blurBackground", blurBackground);
   addUiElement("disclaimerModal", disclaimerModal);
   addUiElement("keybindsModal", keybindsModal);
   addUiElement("contentWarningModal", contentWarningModal);
+  addUiElement("webglNotSupportedModal", webglNotSupportedModal);
   openAboutModal.addEventListener("click", () => {
     toggleWithBackground("aboutModal", true);
   });
@@ -124,4 +132,19 @@ export const showContentWarningModal = (confirmCallback: () => void) => {
   } else {
     confirmCallback();
   }
+};
+
+export const showNotSupportedModal = () => {
+  const element = uiDescriptions.webglNotSupportedModal.element;
+  if (!element) {
+    throw Error("Could not find support message modal!");
+  }
+  if (element.innerHTML === "") {
+    let html = "";
+    html += "<p>Sorry, WebGL is not supported in your browser :(</p>";
+    html += "<p>Please try updating your browser.</p>";
+    html += "<p>If you are on a mobile phone, try using a computer.</p>";
+    element.innerHTML = html;
+  }
+  toggleWithBackground("webglNotSupportedModal", true);
 };
