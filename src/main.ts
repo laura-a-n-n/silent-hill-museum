@@ -328,7 +328,11 @@ const render = () => {
       }
     );
 
-    if (material instanceof Material && material.name === "uv-map") {
+    if (
+      material instanceof Material &&
+      material.name === "uv-map" &&
+      clientState.params["Render Mode"] !== MaterialView.UV
+    ) {
       textureFolder.hide();
     } else {
       textureFolder.show();
