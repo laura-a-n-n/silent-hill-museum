@@ -1,5 +1,11 @@
+import { clientState } from "./objects/MuseumState";
+
 const uiDescriptions: {
-  [elementKey: string]: { open: boolean; element: HTMLDivElement | undefined };
+  [elementKey: string]: {
+    open: boolean;
+    element: HTMLDivElement | undefined;
+    onClose?: () => void;
+  };
 } = {
   aboutModal: { open: false, element: undefined },
   disclaimerModal: { open: false, element: undefined },
@@ -111,6 +117,10 @@ export const toggleElement = (
     closeAllElements();
   }
   uiDescriptions[elementKey].open = open;
+  if (!open) {
+    uiDescriptions[elementKey].onClose?.();
+  }
+
   const modalElement = uiDescriptions[elementKey].element;
   if (!modalElement) {
     return;
@@ -141,11 +151,16 @@ export const onConfirm = (confirmCallback: () => void) => {
   confirmButton.addEventListener("click", onConfirm);
 };
 
-export const showContentWarningModal = (confirmCallback: () => void) => {
-  if (!localStorage.getItem("contentWarningAccepted")) {
+export const showContentWarningModal = (
+  confirmCallback: () => void,
+  declineCallback: () => void
+) => {
+  if (!clientState.hasAcceptedContentWarning()) {
     toggleWithBackground("contentWarningModal", true);
+    uiDescriptions.contentWarningModal.onClose = declineCallback;
     onConfirm(() => {
       localStorage.setItem("contentWarningAccepted", "true");
+      uiDescriptions.contentWarningModal.onClose = undefined;
       confirmCallback();
     });
   } else {

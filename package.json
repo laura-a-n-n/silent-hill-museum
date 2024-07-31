@@ -2,8 +2,7 @@
   "name": "silent-hill-museum",
   "description": "Explore Silent Hill models",
   "author": "Laura Ann",
-  "private": true,
-  "version": "0.0.4",
+  "version": "0.0.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -34,6 +33,7 @@
   "dependencies": {
     "decode-dxt": "^1.0.1",
     "kaitai-struct": "^0.10.0",
+    "lil-gui": "^0.19.2",
     "three": "^0.162.0"
   },
   "peerDependencies": {

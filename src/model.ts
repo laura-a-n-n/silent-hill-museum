@@ -7,7 +7,6 @@ import {
   Float32BufferAttribute,
   Material,
   Matrix4,
-  Mesh,
   MeshStandardMaterial,
   MeshStandardMaterialParameters,
   Skeleton,
@@ -15,7 +14,7 @@ import {
   Vector3,
 } from "three";
 import SilentHillModel from "./types/Mdl";
-import { transformationMatrixToMat4, triangleStripToList } from "./utils";
+import { transformationMatrixToMat4 } from "./utils";
 import decodeDXT from "decode-dxt";
 
 export const MaterialView = {
@@ -401,13 +400,6 @@ export const bindSkeletonToSecondaryGeometry = (
   return { boneWeights, boneIndices };
 };
 
-export const getMesh = (
-  geometry: BufferGeometry,
-  material: Material | Material[]
-) => {
-  return new Mesh(geometry, material);
-};
-
 const getDefaultDiffuseMap = () => {
   const width = 128,
     height = 128;
@@ -425,3 +417,74 @@ const getDefaultDiffuseMap = () => {
   return data;
 };
 const defaultDiffuseMap = getDefaultDiffuseMap();
+
+/**
+ * Remove degenerate triangles, split by primitives, and convert to
+ * triangle list.
+ */
+export const triangleStripToList = (
+  stripIndices: number[],
+  primitiveStartIndices: number[],
+  triangleCount: number
+) => {
+  const triangleIndices: number[] = [];
+  const primitiveCount = primitiveStartIndices.length;
+  const groupData: { start: number; count: number }[] = [
+    { start: 0, count: 0 },
+  ];
+  const primitiveVertexSets: Set<number>[] = [new Set()];
+  let index = 2;
+  let primitiveIndex = 0;
+  let currentIndex = 0;
+  let groupIndexCount = 0;
+  let triangleOrientation = 0;
+
+  while (index < triangleCount) {
+    const [v0, v1, v2] = [
+      stripIndices[index - 2],
+      stripIndices[index - 1],
+      stripIndices[index],
+    ];
+    if (
+      primitiveIndex < primitiveCount &&
+      primitiveStartIndices[primitiveIndex + 1] === index
+    ) {
+      // this vertex is part of a new primitive, scoot forward two vertices
+      index += 2;
+
+      // update primitives
+      groupData[primitiveIndex].count = groupIndexCount;
+      groupData.push({
+        start: currentIndex,
+        count: 0,
+      });
+      groupIndexCount = 0;
+      triangleOrientation = 0;
+      primitiveIndex++;
+      primitiveVertexSets.push(new Set());
+      continue;
+    }
+    if (v0 === v1 || v1 === v2 || v0 === v2) {
+      // degenerate triangle
+      index++;
+      triangleOrientation++;
+      continue;
+    }
+    const vertexSet = primitiveVertexSets[primitiveIndex];
+    vertexSet.add(v0);
+    vertexSet.add(v1);
+    vertexSet.add(v2);
+    if (triangleOrientation % 2 === 0) {
+      triangleIndices.push(v0, v1, v2);
+    } else {
+      triangleIndices.push(v2, v1, v0);
+    }
+    index++;
+    triangleOrientation++;
+    currentIndex += 3;
+    groupIndexCount += 3;
+  }
+  groupData.at(-1)!.count = groupIndexCount;
+
+  return { triangleIndices, primitiveVertexSets, groupData };
+};

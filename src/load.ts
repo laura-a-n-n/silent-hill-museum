@@ -24,6 +24,7 @@ export const loadModelFromBytes = (bytes: ArrayBuffer) => {
 };
 
 export const loadModel = async (url: string) => {
+  console.log(`Attempting to load model ${url}`);
   if (url in modelCache) {
     return modelCache[url];
   }

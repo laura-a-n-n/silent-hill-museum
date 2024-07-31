@@ -1,6 +1,9 @@
 import {
+  BackSide,
   Box3,
   Color,
+  DoubleSide,
+  FrontSide,
   Group,
   Matrix4,
   Mesh,
@@ -12,139 +15,13 @@ import {
   SphereGeometry,
   Vector3,
 } from "three";
-import { OrbitControls } from "three/examples/jsm/Addons.js";
+import { GLTFExporter, OrbitControls } from "three/examples/jsm/Addons.js";
 import { TransformationMatrix } from "./types/Mdl";
 
-/**
- * Remove degenerate triangles, split by primitives, and convert to
- * triangle list.
- */
-export const triangleStripToList = (
-  stripIndices: number[],
-  primitiveStartIndices: number[],
-  triangleCount: number
-) => {
-  const triangleIndices: number[] = [];
-  const primitiveCount = primitiveStartIndices.length;
-  const groupData: { start: number; count: number }[] = [
-    { start: 0, count: 0 },
-  ];
-  const primitiveVertexSets: Set<number>[] = [new Set()];
-  let index = 2;
-  let primitiveIndex = 0;
-  let currentIndex = 0;
-  let groupIndexCount = 0;
-  let triangleOrientation = 0;
-
-  while (index < triangleCount) {
-    const [v0, v1, v2] = [
-      stripIndices[index - 2],
-      stripIndices[index - 1],
-      stripIndices[index],
-    ];
-    if (
-      primitiveIndex < primitiveCount &&
-      primitiveStartIndices[primitiveIndex + 1] === index
-    ) {
-      // this vertex is part of a new primitive, scoot forward two vertices
-      index += 2;
-
-      // update primitives
-      groupData[primitiveIndex].count = groupIndexCount;
-      groupData.push({
-        start: currentIndex,
-        count: 0,
-      });
-      groupIndexCount = 0;
-      triangleOrientation = 0;
-      primitiveIndex++;
-      primitiveVertexSets.push(new Set());
-      continue;
-    }
-    if (v0 === v1 || v1 === v2 || v0 === v2) {
-      // degenerate triangle
-      index++;
-      triangleOrientation++;
-      continue;
-    }
-    const vertexSet = primitiveVertexSets[primitiveIndex];
-    vertexSet.add(v0);
-    vertexSet.add(v1);
-    vertexSet.add(v2);
-    if (triangleOrientation % 2 === 0) {
-      triangleIndices.push(v0, v1, v2);
-    } else {
-      triangleIndices.push(v2, v1, v0);
-    }
-    index++;
-    triangleOrientation++;
-    currentIndex += 3;
-    groupIndexCount += 3;
-  }
-  groupData.at(-1)!.count = groupIndexCount;
-
-  return { triangleIndices, primitiveVertexSets, groupData };
-};
-
-export const fitCameraToSelection = (
-  camera: PerspectiveCamera,
-  controls: OrbitControls,
-  selection: Object3D[],
-  fitOffset = 1.2
-) => {
-  const size = new Vector3();
-  const center = new Vector3();
-  const box = new Box3();
-  for (const object of selection) {
-    box.expandByObject(object);
-  }
-
-  box.getSize(size);
-  box.getCenter(center);
-
-  const maxSize = Math.max(size.x, size.y, size.z);
-  const fitHeightDistance =
-    maxSize / (2 * Math.atan((Math.PI * camera.fov) / 360));
-  const fitWidthDistance = fitHeightDistance / camera.aspect;
-  const distance = fitOffset * Math.max(fitHeightDistance, fitWidthDistance);
-
-  const direction = controls.target
-    .clone()
-    .sub(camera.position)
-    .normalize()
-    .multiplyScalar(distance);
-
-  controls.maxDistance = distance * 10;
-  controls.target.copy(center);
-
-  camera.near = distance / 100;
-  camera.far = distance * 100;
-  camera.updateProjectionMatrix();
-
-  camera.position.copy(controls.target).sub(direction);
-
-  controls.update();
-};
-
-export const transformationMatrixToMat4 = (matrix: TransformationMatrix) => {
-  return new Matrix4(
-    matrix.rotation00,
-    matrix.rotation01,
-    matrix.rotation02,
-    matrix.translationX,
-    matrix.rotation10,
-    matrix.rotation11,
-    matrix.rotation12,
-    matrix.translationY,
-    matrix.rotation20,
-    matrix.rotation21,
-    matrix.rotation22,
-    matrix.translationZ,
-    matrix.pad0,
-    matrix.pad1,
-    matrix.pad2,
-    matrix.translationW
-  );
+export const RenderSideMap = {
+  DoubleSide,
+  FrontSide,
+  BackSide,
 };
 
 /**
@@ -155,6 +32,19 @@ export const transformationMatrixToMat4 = (matrix: TransformationMatrix) => {
  */
 export const mod = (n: number, m: number) => {
   return ((n % m) + m) % m;
+};
+
+export const findLastNotExceeding = (
+  array: readonly number[],
+  target: number
+) => {
+  let i = 0;
+  for (; i < array.length; i++) {
+    if (array[i] > target) {
+      break;
+    }
+  }
+  return { value: array[i - 1], index: i - 1 };
 };
 
 // Below from https://github.com/mrdoob/js/blob/master/examples/misc_exporter_gltf.html
@@ -195,6 +85,86 @@ export const exportCanvas = (
   }
   const base64 = canvas.toDataURL();
   save(base64, filename);
+};
+
+const exporter = new GLTFExporter();
+export function exportModel(object: Object3D, filename: string) {
+  exporter.parse(
+    object,
+    (result) => {
+      if (result instanceof ArrayBuffer) {
+        saveArrayBuffer(result, `${filename}.glb`);
+      } else {
+        const output = JSON.stringify(result, null, 2);
+        saveString(output, `${filename}.gltf`);
+      }
+    },
+    (error) => {
+      console.warn("Could not export the scene. An error occurred: ", error);
+    },
+    { onlyVisible: false }
+  );
+}
+
+export const transformationMatrixToMat4 = (matrix: TransformationMatrix) => {
+  return new Matrix4(
+    matrix.rotation00,
+    matrix.rotation01,
+    matrix.rotation02,
+    matrix.translationX,
+    matrix.rotation10,
+    matrix.rotation11,
+    matrix.rotation12,
+    matrix.translationY,
+    matrix.rotation20,
+    matrix.rotation21,
+    matrix.rotation22,
+    matrix.translationZ,
+    matrix.pad0,
+    matrix.pad1,
+    matrix.pad2,
+    matrix.translationW
+  );
+};
+
+export const fitCameraToSelection = (
+  camera: PerspectiveCamera,
+  controls: OrbitControls,
+  selection: Object3D[],
+  fitOffset = 1.2
+) => {
+  const size = new Vector3();
+  const center = new Vector3();
+  const box = new Box3();
+  for (const object of selection) {
+    box.expandByObject(object);
+  }
+
+  box.getSize(size);
+  box.getCenter(center);
+
+  const maxSize = Math.max(size.x, size.y, size.z);
+  const fitHeightDistance =
+    maxSize / (2 * Math.atan((Math.PI * camera.fov) / 360));
+  const fitWidthDistance = fitHeightDistance / camera.aspect;
+  const distance = fitOffset * Math.max(fitHeightDistance, fitWidthDistance);
+
+  const direction = controls.target
+    .clone()
+    .sub(camera.position)
+    .normalize()
+    .multiplyScalar(distance);
+
+  controls.maxDistance = distance * 10;
+  controls.target.copy(center);
+
+  camera.near = distance / 100;
+  camera.far = distance * 100;
+  camera.updateProjectionMatrix();
+
+  camera.position.copy(controls.target).sub(direction);
+
+  controls.update();
 };
 
 export const createChristmasLights = (

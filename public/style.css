@@ -201,3 +201,11 @@ table tr td:nth-child(2) {
 .float-right {
   float: right;
 }
+
+ol li {
+  margin-bottom: 1rem;
+}
+
+ol {
+  margin-bottom: 1.5rem;
+}

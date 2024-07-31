@@ -4,26 +4,18 @@ import {
   createGeometry,
   createMaterial,
   createSkeleton,
-  getMesh,
   MaterialType,
   MaterialView,
 } from "./model";
 import { loadModel } from "./load";
-import MuseumState, {
-  folderNames,
-  MuseumInputFile,
-  Scenario,
-  ScenarioType,
-  secondaryFolderNames,
-} from "./objects/MuseumState";
-import KeybindManager from "./objects/KeybindManager";
 import {
-  exportCanvas,
-  fitCameraToSelection,
-  saveArrayBuffer,
-  saveString,
-} from "./utils";
-import GUI from "three/examples/jsm/libs/lil-gui.module.min.js";
+  cameraFix,
+  clientState,
+  defaultParams,
+  preferredParams,
+  START_INDEX,
+} from "./objects/MuseumState";
+import { exportCanvas, fitCameraToSelection, RenderSideMap } from "./utils";
 import {
   WebGLRenderer,
   Object3D,
@@ -36,31 +28,28 @@ import {
   Mesh,
   SkinnedMesh,
   Color,
-  DoubleSide,
-  FrontSide,
-  BackSide,
   ColorManagement,
   SRGBColorSpace,
   ACESFilmicToneMapping,
   PMREMGenerator,
   Clock,
-  Vector3,
   WebGL1Renderer,
+  Material,
 } from "three";
 import {
-  GLTFExporter,
   OrbitControls,
   TransformControls,
   WebGL,
 } from "three/examples/jsm/Addons.js";
 import {
-  closeAllElements,
   initializeModals,
-  isAnyElementOpenOtherThan,
-  onConfirm,
+  showContentWarningModal,
   showNotSupportedModal,
   toggleWithBackground,
 } from "./modals";
+import { chrFolders, MuseumFile } from "./files";
+import "./keybinds";
+import GUI from "lil-gui";
 
 const appContainer = document.getElementById("app");
 if (!(appContainer instanceof HTMLDivElement)) {
@@ -74,7 +63,7 @@ if (localStorage.getItem("visited") === null) {
   localStorage.setItem("visited", "true");
 }
 
-let glVersion = 0;
+let glVersion: 0 | 1 | 2 = 0;
 if (!WebGL.isWebGLAvailable()) {
   showNotSupportedModal(glVersion);
   throw Error("WebGL is not available on this browser.");
@@ -84,273 +73,125 @@ if (!WebGL.isWebGLAvailable()) {
 } else {
   glVersion = 2;
 }
-
-const state = new MuseumState();
-const keybindManager = new KeybindManager();
-keybindManager.addKeybind(
-  "arrowright",
-  () => state.nextFile(),
-  "Next file in folder"
-);
-keybindManager.addKeybind(
-  "arrowleft",
-  () => state.previousFile(),
-  "Previous file in folder"
-);
-keybindManager.addKeybind("arrowup", () => state.nextFolder(), "Next folder");
-keybindManager.addKeybind(
-  "arrowdown",
-  () => state.previousFolder(),
-  "Previous folder"
-);
-keybindManager.addKeybind(
-  "s",
-  () => state.toggleScenario(),
-  "Toggle scenarios"
-);
-keybindManager.addKeybind(
-  "r",
-  () => (params["Controls Mode"] = "rotate"),
-  "Bone rotate mode"
-);
-keybindManager.addKeybind(
-  "t",
-  () => (params["Controls Mode"] = "translate"),
-  "Bone translate mode"
-);
-keybindManager.addKeybind(
-  "0",
-  () => (params["Render This Frame"] = true),
-  "Render the current frame as PNG"
-);
-keybindManager.addKeybind(
-  "k",
-  () =>
-    !isAnyElementOpenOtherThan("keybindsModal") &&
-    toggleWithBackground("keybindsModal"),
-  "Toggle keybinds modal"
-);
-keybindManager.addKeybind(
-  "escape",
-  () => closeAllElements(),
-  "Close all modals"
-);
-keybindManager.addKeybind(
-  "c",
-  () => console.log(controls.target, camera.position),
-  "Camera log"
-);
-
-const keybindsModal = document.getElementById("keybinds-modal");
-if (keybindsModal) {
-  // list all keybinds
-  const entries = Array.from(keybindManager.getDescriptionMap().entries());
-  let html = "<table><tbody>";
-  for (const [keybind, description] of entries) {
-    const keybindHtml = keybind
-      .split("/")
-      .map((key) => `<kbd>${key}</kbd>`)
-      .join("+");
-    html += `<tr><td>${keybindHtml}</td> <td>${description}</td></tr>`;
-  }
-  html += "</tbody></table>";
-  keybindsModal.innerHTML = html;
-}
+clientState.setGlVersion(glVersion);
 
 const gui = new GUI({ width: 250 });
-const params = {
-  Scenario: state.getScenario(),
-  Folder: state.getFolderName() as string,
-  Filename: state.file,
-  "Next File": () => state.nextFile(),
-  "Previous File": () => state.previousFile(),
-  "Save Image": () => (params["Render This Frame"] = true),
-  "Export to GLTF": () => {
-    toggleWithBackground("disclaimerModal", true);
-    onConfirm(exportModel);
-  },
 
-  "Auto-Rotate": true,
-  "Bone Controls": false,
-  "Controls Mode": "rotate",
-  "Selected Bone": 0,
-
-  "Render Primary": true,
-  "Render Extra": true,
-  "Skeleton Mode": glVersion === 2,
-  "Visualize Skeleton": false,
-
-  "Render Mode": MaterialView.Textured as string,
-  "Ambient Color": 0xffffff,
-  "Ambient Intensity": 1.0,
-  Transparency: true,
-  "Alpha Test": 0.01,
-  "Model Opacity": 1.0,
-  "Render Side": "FrontSide",
-
-  "Render This Frame": false,
-  "Content Warning Accepted": localStorage.getItem("contentWarningAccepted"),
-};
-const RenderSideMap = {
-  DoubleSide,
-  FrontSide,
-  BackSide,
-};
-/**
- * Preferred params for models that are best viewed with certain settings.
- * May be needed as certain properties haven't been reverse-engineered yet.
- */
-const preferredParams: { [File in MuseumInputFile]?: Partial<typeof params> } =
-  {
-    "nef.mdl": {
-      "Render Side": "DoubleSide",
-    },
-    "i_radio.mdl": {
-      Transparency: false,
-      "Alpha Test": 0,
-    },
-    "noa.mdl": {
-      "Render Side": "DoubleSide",
-    },
-    "nor.mdl": {
-      "Render Side": "DoubleSide",
-    },
-    "rhhh_mar.mdl": {
-      "Render Side": "BackSide",
-    },
-    "x_keygate.mdl": {
-      Transparency: false,
-      "Alpha Test": 0,
-    },
-  };
-const cameraFix: {
-  [File in MuseumInputFile]?: {
-    cameraPosition: Vector3;
-    controlsTarget: Vector3;
-  };
-} = {
-  "bos.mdl": {
-    controlsTarget: new Vector3(
-      -58.17799245068679,
-      -626.735509717446,
-      -169.58143575897614
-    ),
-    cameraPosition: new Vector3(
-      12.92254067950762,
-      -573.3331804019333,
-      943.5324793077427
-    ),
-  },
-};
-const defaultParams = Object.assign(
-  {},
-  ...Object.values(preferredParams).map((o) =>
-    Object.fromEntries(
-      Object.keys(o).map((k) => [k, params[k as keyof typeof params]])
-    )
-  )
-);
 const dataGuiFolder = gui.addFolder("Data");
 const scenarioInput = dataGuiFolder
-  .add(params, "Scenario", Object.values(Scenario))
-  .onFinishChange((scenarioName) => {
-    if (scenarioName === "Born From A Wish") {
-      subScenarioFolderInput.show();
-      mainFolderInput.hide();
-      folderInput = subScenarioFolderInput;
-    } else {
-      mainFolderInput.show();
-      subScenarioFolderInput.hide();
-      folderInput = mainFolderInput;
-    }
-    state.setScenario(scenarioName as ScenarioType);
+  .add(clientState.params, "Scenario", ["Main Scenario", "Born From A Wish"])
+  .onFinishChange((scenarioName: "Main Scenario" | "Born From A Wish") => {
+    clientState.rootFolder = scenarioName === "Main Scenario" ? "chr" : "chr2";
+  });
+const folderInput = dataGuiFolder
+  .add(clientState.params, "Folder", chrFolders)
+  .onFinishChange((folderName: (typeof chrFolders)[number]) => {
+    clientState.folder = folderName;
+  });
+const possibleFilenames = clientState.getPossibleFilenames();
+const fileInput = dataGuiFolder.add(
+  clientState.params,
+  "Filename",
+  possibleFilenames
+);
+dataGuiFolder
+  .add(clientState.params, "Lock To Folder")
+  .onFinishChange(() => {
+    showContentWarningModal(
+      () => {
+        clientState.params["Lock To Folder"] = false;
+        render();
+      },
+      () => {
+        clientState.setFileIndex(START_INDEX);
+        const controllers = gui.controllersRecursive();
+        controllers.forEach((c) => {
+          c.setValue(c.initialValue);
+        });
+      }
+    );
   })
   .listen();
-const mainFolderInput = dataGuiFolder
-  .add(params, "Folder", folderNames)
-  .onFinishChange((folderName) => {
-    state.setFolderName(folderName);
-  });
-const subScenarioFolderInput = dataGuiFolder
-  .add(params, "Folder", secondaryFolderNames)
-  .onFinishChange((folderName) => {
-    state.setFolderName(folderName);
-  })
-  .hide();
-let folderInput = mainFolderInput;
-const fileInput = dataGuiFolder.add(params, "Filename");
-dataGuiFolder.add(params, "Next File");
-dataGuiFolder.add(params, "Previous File");
-dataGuiFolder.add(params, "Save Image");
-dataGuiFolder.add(params, "Export to GLTF");
-fileInput.onFinishChange((file) => {
-  state.file = file;
+dataGuiFolder.add(clientState.params, "Next File");
+dataGuiFolder.add(clientState.params, "Previous File");
+dataGuiFolder.add(clientState.params, "Save Image");
+dataGuiFolder.add(clientState.params, "Export to GLTF");
+fileInput.onFinishChange((file: (typeof possibleFilenames)[number]) => {
+  clientState.file = file;
 });
 dataGuiFolder.open();
 
 const controlsGuiFolder = gui.addFolder("Controls");
-controlsGuiFolder.add(params, "Auto-Rotate");
-controlsGuiFolder.add(params, "Bone Controls").onChange((value) => {
-  if (value) {
-    controlsModeInput.show();
-    boneSelector.show();
-    return;
-  }
-  controlsModeInput.hide();
-  boneSelector.hide();
-});
+controlsGuiFolder.add(clientState.params, "Auto-Rotate");
+controlsGuiFolder
+  .add(clientState.params, "Bone Controls")
+  .onFinishChange((value: boolean) => {
+    if (value) {
+      controlsModeInput.show();
+      boneSelector.show();
+      return;
+    }
+    controlsModeInput.hide();
+    boneSelector.hide();
+  });
 const boneSelector = controlsGuiFolder
-  .add(params, "Selected Bone", 0, 1, 1)
-  .onChange(() => transformControls.removeFromParent())
+  .add(clientState.params, "Selected Bone", 0, 1, 1)
+  .onFinishChange(() => transformControls.removeFromParent())
   .hide()
   .listen();
 const controlsModeInput = controlsGuiFolder
-  .add(params, "Controls Mode", ["translate", "rotate"])
+  .add(clientState.params, "Controls Mode", ["translate", "rotate"])
   .listen()
   .hide();
 
 const geometryFolder = gui.addFolder("Geometry");
-geometryFolder.add(params, "Render Primary");
-geometryFolder.add(params, "Render Extra");
-if (glVersion === 2) {
-  geometryFolder.add(params, "Skeleton Mode");
-  geometryFolder.add(params, "Visualize Skeleton").onChange((on) => {
-    if (on && params["Model Opacity"] > 0.5) {
-      params["Model Opacity"] = 0.5;
-    } else if (!on) {
-      params["Model Opacity"] = 1.0;
-    }
-  });
+geometryFolder.add(clientState.params, "Render Primary");
+geometryFolder.add(clientState.params, "Render Extra");
+if (clientState.getGlVersion() === 2) {
+  geometryFolder.add(clientState.params, "Skeleton Mode");
+  geometryFolder
+    .add(clientState.params, "Visualize Skeleton")
+    .onFinishChange((on: boolean) => {
+      if (on && clientState.params["Model Opacity"] > 0.5) {
+        clientState.params["Model Opacity"] = 0.5;
+      } else if (!on) {
+        clientState.params["Model Opacity"] = 1.0;
+      }
+    });
 } else {
   controlsGuiFolder.hide();
-  geometryFolder.add(params, "Auto-Rotate");
+  geometryFolder.add(clientState.params, "Auto-Rotate");
 }
 geometryFolder.onFinishChange(() => render());
 
 const textureFolder = gui.addFolder("Texture");
 textureFolder
-  .add(params, "Render Mode", [
+  .add(clientState.params, "Render Mode", [
     MaterialView.Flat,
     MaterialView.Textured,
     MaterialView.UV,
   ])
   .onFinishChange(() => render());
-textureFolder.addColor(params, "Ambient Color");
-textureFolder.add(params, "Ambient Intensity", 0, 8);
+textureFolder.addColor(clientState.params, "Ambient Color");
+textureFolder.add(clientState.params, "Ambient Intensity", 0, 8);
 textureFolder
-  .add(params, "Model Opacity", 0, 1, 0.01)
+  .add(clientState.params, "Model Opacity", 0, 1, 0.01)
   .onFinishChange(() => render())
   .listen();
 textureFolder
-  .add(params, "Transparency")
+  .add(clientState.params, "Transparency")
   .onFinishChange(() => render())
   .listen();
 textureFolder
-  .add(params, "Alpha Test", 0, 1, 0.01)
+  .add(clientState.params, "Alpha Test", 0, 1, 0.01)
   .onFinishChange(() => render())
   .listen();
 textureFolder
-  .add(params, "Render Side", ["DoubleSide", "FrontSide", "BackSide"])
+  .add(clientState.params, "Render Side", [
+    "DoubleSide",
+    "FrontSide",
+    "BackSide",
+  ])
   .onFinishChange(() => render())
   .listen();
 
@@ -395,7 +236,7 @@ renderer.outputColorSpace = SRGBColorSpace;
 renderer.toneMapping = ACESFilmicToneMapping;
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.autoRotate = params["Auto-Rotate"];
+controls.autoRotate = clientState.params["Auto-Rotate"];
 controls.update();
 
 const transformControls = new TransformControls(camera, renderer.domElement);
@@ -405,49 +246,57 @@ const clock = new Clock();
 const group = new Group();
 let helper: SkeletonHelper | undefined;
 
-const exporter = new GLTFExporter();
-function exportModel() {
-  exporter.parse(
-    group,
-    (result) => {
-      if (result instanceof ArrayBuffer) {
-        saveArrayBuffer(result, `${state.file}.glb`);
-      } else {
-        const output = JSON.stringify(result, null, 2);
-        saveString(output, `${state.file}.gltf`);
-      }
-    },
-    (error) => {
-      console.warn("Could not export the scene. An error occurred: ", error);
-    },
-    { onlyVisible: false }
-  );
-}
-
-let lastFile = state.file;
+let lastIndex = clientState.getFileIndex();
 const render = () => {
-  const filename = state.file.split("/")[1];
-  if (lastFile !== state.file) {
-    lastFile = state.file;
+  const filename = clientState.file;
+  const currentFileIndex = clientState.getFileIndex();
+  if (lastIndex !== currentFileIndex) {
+    if (
+      clientState.folder !== "favorites" &&
+      !clientState.hasAcceptedContentWarning()
+    ) {
+      showContentWarningModal(
+        () => {
+          clientState.params["Lock To Folder"] = false;
+          render();
+        },
+        () => {
+          clientState.setFileIndex(START_INDEX);
+          const controllers = gui.controllersRecursive();
+          controllers.forEach((c) => {
+            c.setValue(c.initialValue);
+          });
+        }
+      );
+      return;
+    }
+    lastIndex = currentFileIndex;
     if (filename in preferredParams) {
       Object.assign(
-        params,
+        clientState.params,
         preferredParams[filename as keyof typeof preferredParams]
       );
     } else {
-      Object.assign(params, defaultParams);
+      Object.assign(clientState.params, defaultParams);
     }
-    params["Selected Bone"] = 0;
+    clientState.params["Selected Bone"] = 0;
+
+    fileInput.setValue(clientState.file);
+    scenarioInput.setValue(
+      clientState.rootFolder === "chr" ? "Main Scenario" : "Born From A Wish"
+    );
+    folderInput.setValue(clientState.folder);
+    folderInput.options(clientState.getPossibleFolders());
+    fileInput.options(clientState.getPossibleFilenames());
   }
-  fileInput.setValue(state.file);
-  scenarioInput.setValue(state.getScenario());
-  folderInput.setValue(state.getFolderName());
-  loadModel(`/mdl/${state.rootFolder}/${state.file}`).then((model) => {
+  loadModel(
+    `/mdl/${clientState.rootFolder}/${clientState.folder}/${clientState.file}`
+  ).then((model) => {
     console.log("Parsed model structure", model);
     scene.clear();
     const light = new AmbientLight(
-      params["Ambient Color"],
-      params["Ambient Intensity"]
+      clientState.params["Ambient Color"],
+      clientState.params["Ambient Intensity"]
     );
     scene.add(light);
     if (model === undefined) {
@@ -465,29 +314,38 @@ const render = () => {
 
     const material = createMaterial(
       model,
-      params["Render Mode"] as MaterialType,
+      clientState.params["Render Mode"] as MaterialType,
       {
-        alphaTest: params["Alpha Test"],
-        transparent: params.Transparency,
+        alphaTest: clientState.params["Alpha Test"],
+        transparent: clientState.params.Transparency,
         side: RenderSideMap[
-          params["Render Side"] as "DoubleSide" | "FrontSide" | "BackSide"
+          clientState.params["Render Side"] as
+            | "DoubleSide"
+            | "FrontSide"
+            | "BackSide"
         ],
-        opacity: params["Model Opacity"],
+        opacity: clientState.params["Model Opacity"],
       }
     );
 
-    const primaryGeometry = params["Render Primary"]
+    if (material instanceof Material && material.name === "uv-map") {
+      textureFolder.hide();
+    } else {
+      textureFolder.show();
+    }
+
+    const primaryGeometry = clientState.params["Render Primary"]
       ? createGeometry(model, 0)
       : undefined;
 
     let modelSkeleton: Skeleton | undefined = undefined;
     if (primaryGeometry) {
-      primaryGeometry.name = `${state.file}-primary`;
+      primaryGeometry.name = `${clientState.file}-primary`;
       primaryGeometry.computeVertexNormals();
 
       let mesh: Mesh;
 
-      if (params["Skeleton Mode"]) {
+      if (clientState.params["Skeleton Mode"]) {
         const { skeleton, rootBoneIndices } = createSkeleton(model);
         bindSkeletonToGeometry(model, primaryGeometry);
 
@@ -498,12 +356,12 @@ const render = () => {
         (mesh as SkinnedMesh).bind(skeleton);
         modelSkeleton = skeleton;
 
-        if (params["Visualize Skeleton"]) {
+        if (clientState.params["Visualize Skeleton"]) {
           helper = new SkeletonHelper(mesh);
           scene.add(helper);
         }
       } else {
-        mesh = getMesh(primaryGeometry, material);
+        mesh = new Mesh(primaryGeometry, material);
       }
       mesh.renderOrder = 1;
 
@@ -511,15 +369,15 @@ const render = () => {
       group.add(mesh);
     }
 
-    const secondaryGeometry = params["Render Extra"]
+    const secondaryGeometry = clientState.params["Render Extra"]
       ? createGeometry(model, 1)
       : undefined;
     if (secondaryGeometry) {
-      secondaryGeometry.name = `${state.file}-secondary`;
+      secondaryGeometry.name = `${clientState.file}-secondary`;
       secondaryGeometry.computeVertexNormals();
 
       let mesh: SkinnedMesh | Mesh;
-      if (params["Skeleton Mode"]) {
+      if (clientState.params["Skeleton Mode"]) {
         mesh = new SkinnedMesh(secondaryGeometry, material);
 
         if (!primaryGeometry || !modelSkeleton) {
@@ -532,7 +390,7 @@ const render = () => {
         bindSkeletonToSecondaryGeometry(model, secondaryGeometry);
         (mesh as SkinnedMesh).bind(modelSkeleton);
       } else {
-        mesh = getMesh(secondaryGeometry, material);
+        mesh = new Mesh(secondaryGeometry, material);
       }
       mesh.renderOrder = 2;
 
@@ -542,7 +400,7 @@ const render = () => {
 
     scene.add(group);
     if (primaryGeometry !== undefined || secondaryGeometry !== undefined) {
-      const fix = cameraFix[filename as MuseumInputFile];
+      const fix = cameraFix[filename as MuseumFile];
       fitCameraToSelection(camera, controls, [group]);
       if (fix !== undefined) {
         controls.target.copy(fix.controlsTarget);
@@ -551,7 +409,7 @@ const render = () => {
       }
     }
 
-    if (state.file === "favorites/org.mdl") {
+    if (clientState.folder === "favorites" && clientState.file === "org.mdl") {
       modelSkeleton?.bones[0]?.rotateZ(Math.PI / 2);
       modelSkeleton?.bones[6]?.rotateZ(-Math.PI / 2);
       modelSkeleton?.bones[7]?.rotateZ(-Math.PI / 2);
@@ -562,7 +420,7 @@ const render = () => {
     boneSelector.max(maxBoneSelection);
     if (maxBoneSelection === 0) {
       boneSelector.hide();
-    } else if (params["Bone Controls"]) {
+    } else if (clientState.params["Bone Controls"]) {
       boneSelector.show();
     }
 
@@ -570,18 +428,23 @@ const render = () => {
       const delta = clock.getDelta() * 120; // targeting 120 fps
       if (
         modelSkeleton &&
-        params["Bone Controls"] &&
+        clientState.params["Bone Controls"] &&
         transformControls.parent === null
       ) {
         transformControls.enabled = true;
-        transformControls.attach(modelSkeleton.bones[params["Selected Bone"]]);
+        transformControls.attach(
+          modelSkeleton.bones[clientState.params["Selected Bone"]]
+        );
         transformControls.size = 0.5;
         scene.add(transformControls);
-      } else if (transformControls.parent && !params["Bone Controls"]) {
+      } else if (
+        transformControls.parent &&
+        !clientState.params["Bone Controls"]
+      ) {
         scene.remove(transformControls);
         transformControls.enabled = false;
       }
-      transformControls.mode = params["Controls Mode"] as
+      transformControls.mode = clientState.params["Controls Mode"] as
         | "translate"
         | "rotate";
       if (transformControls.dragging) {
@@ -590,25 +453,29 @@ const render = () => {
         controls.enabled = true;
       }
 
-      controls.autoRotate = params["Auto-Rotate"];
+      controls.autoRotate = clientState.params["Auto-Rotate"];
       controls.update();
 
-      light.color = new Color(params["Ambient Color"]);
-      light.intensity = params["Ambient Intensity"];
+      light.color = new Color(clientState.params["Ambient Color"]);
+      light.intensity = clientState.params["Ambient Intensity"];
 
-      if (state.file === "favorites/org.mdl") {
+      if (
+        clientState.folder === "favorites" &&
+        clientState.file === "org.mdl"
+      ) {
         modelSkeleton?.bones[2]?.rotateZ(delta * -0.005);
         modelSkeleton?.bones[3]?.rotateZ(delta * -0.0025);
       }
 
       renderer.render(scene, camera);
 
-      if (params["Render This Frame"]) {
-        exportCanvas(appContainer, state.file + ".png");
-        params["Render This Frame"] = false;
+      if (clientState.params["Render This Frame"]) {
+        exportCanvas(appContainer, clientState.file + ".png");
+        clientState.params["Render This Frame"] = false;
       }
     }
     renderer.setAnimationLoop(animate);
   });
 };
-state.setOnUpdate(render);
+render();
+clientState.setOnUpdate(render);
