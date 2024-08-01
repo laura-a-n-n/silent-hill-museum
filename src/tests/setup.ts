@@ -9,7 +9,7 @@ const loadScript = (filePath: string) => {
 
 // Load the required JS files
 loadScript(path.resolve(__dirname, "../../public/js/vendor/KaitaiStream.js"));
-loadScript(path.resolve(__dirname, "../../public/js/Mdl.js"));
+loadScript(path.resolve(__dirname, "../../public/js/mdl.min.js"));
 
 // Mock fetch to just read the file synchronously
 const mockFetch = async (url: RequestInfo | URL) => {
