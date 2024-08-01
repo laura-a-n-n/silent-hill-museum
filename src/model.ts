@@ -180,7 +180,8 @@ const processPrimitiveHeaders = (
 export const createMaterial = (
   model: SilentHillModel,
   materialType: MaterialType = MaterialView.Textured,
-  parameters?: MeshStandardMaterialParameters
+  parameters?: MeshStandardMaterialParameters,
+  invertAlpha: boolean = false
 ): Material | Material[] => {
   let material: Material | Material[];
   let textureMap = defaultDiffuseMap;
@@ -221,6 +222,9 @@ export const createMaterial = (
             DxtLookup[texture.spriteHeaders[0].format as keyof typeof DxtLookup]
           );
           textureMap = rgbaData;
+        }
+        if (invertAlpha) {
+          textureMap = textureMap.map((v, i) => (i % 4 === 3 ? 255 - v : v));
         }
         const dataTexture = new DataTexture(textureMap, width, height);
         dataTexture.needsUpdate = true;

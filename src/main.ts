@@ -183,6 +183,10 @@ textureFolder
   .onFinishChange(() => render())
   .listen();
 textureFolder
+  .add(clientState.params, "Invert Alpha")
+  .onFinishChange(() => render())
+  .listen();
+textureFolder
   .add(clientState.params, "Alpha Test", 0, 1, 0.01)
   .onFinishChange(() => render())
   .listen();
@@ -325,7 +329,8 @@ const render = () => {
             | "BackSide"
         ],
         opacity: clientState.params["Model Opacity"],
-      }
+      },
+      clientState.params["Invert Alpha"]
     );
 
     if (
@@ -403,6 +408,7 @@ const render = () => {
     }
 
     scene.add(group);
+    clientState.setCurrentObject(group);
     if (primaryGeometry !== undefined || secondaryGeometry !== undefined) {
       const fix = cameraFix[filename as MuseumFile];
       fitCameraToSelection(camera, controls, [group]);

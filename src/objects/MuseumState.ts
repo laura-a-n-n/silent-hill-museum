@@ -136,6 +136,10 @@ export default class MuseumState {
     return this.glVersion;
   }
 
+  public setCurrentObject(object: Object3D) {
+    this.currentObject = object;
+  }
+
   public params = {
     Scenario: "Main Scenario",
     Folder: this.folder,
@@ -168,6 +172,7 @@ export default class MuseumState {
     "Ambient Intensity": 1.0,
     Transparency: true,
     "Alpha Test": 0.01,
+    "Invert Alpha": false,
     "Model Opacity": 1.0,
     "Render Side": "FrontSide",
 
@@ -202,8 +207,7 @@ export const preferredParams: {
     "Render Side": "BackSide",
   },
   "x_keygate.mdl": {
-    Transparency: false,
-    "Alpha Test": 0,
+    "Invert Alpha": true,
   },
 };
 export const cameraFix: {
