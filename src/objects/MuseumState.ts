@@ -154,7 +154,10 @@ export default class MuseumState {
         return;
       }
       toggleWithBackground("disclaimerModal", true);
-      onConfirm(() => exportModel(object, this.file));
+      onConfirm(() => {
+        exportModel(object, this.file);
+        toggleWithBackground("blenderExportModal", true);
+      });
     },
 
     "Auto-Rotate": true,

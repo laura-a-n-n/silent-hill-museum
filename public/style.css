@@ -209,3 +209,7 @@ ol li {
 ol {
   margin-bottom: 1.5rem;
 }
+
+.no-margin-bottom {
+  margin-bottom: 0;
+}

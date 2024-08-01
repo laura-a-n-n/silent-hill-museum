@@ -9,6 +9,7 @@ const uiDescriptions: {
 } = {
   aboutModal: { open: false, element: undefined },
   disclaimerModal: { open: false, element: undefined },
+  blenderExportModal: { open: false, element: undefined },
   blurBackground: { open: false, element: undefined },
   keybindsModal: { open: false, element: undefined },
   contentWarningModal: { open: false, element: undefined },
@@ -42,6 +43,10 @@ export const initializeModals = () => {
   if (!(disclaimerModal instanceof HTMLDivElement)) {
     throw Error("Did not find the disclaimer modal!");
   }
+  const blenderExportModal = document.getElementById("blender-export-modal");
+  if (!(blenderExportModal instanceof HTMLDivElement)) {
+    throw Error("Did not find the blender export modal!");
+  }
   const keybindsModal = document.getElementById("keybinds-modal");
   if (!(keybindsModal instanceof HTMLDivElement)) {
     throw Error("Did not find the keybinds modal!");
@@ -62,6 +67,7 @@ export const initializeModals = () => {
   addUiElement("keybindsModal", keybindsModal);
   addUiElement("contentWarningModal", contentWarningModal);
   addUiElement("webglNotSupportedModal", webglNotSupportedModal);
+  addUiElement("blenderExportModal", blenderExportModal);
   openAboutModal.addEventListener("click", () => {
     toggleWithBackground("aboutModal", true);
   });
@@ -142,10 +148,10 @@ export const onConfirm = (confirmCallback: () => void) => {
     return;
   }
   function onConfirm() {
+    closeAllElements();
     confirmCallback();
     confirmButton?.removeEventListener("click", onConfirm);
     confirmButton?.removeAttribute("eventListenerAdded");
-    closeAllElements();
   }
   confirmButton.setAttribute("eventListenerAdded", "true");
   confirmButton.addEventListener("click", onConfirm);
