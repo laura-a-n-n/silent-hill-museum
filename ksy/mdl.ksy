@@ -71,7 +71,7 @@ types:
         doc: Offset to skeleton data.
       - id: bone_pairs_count
         type: u4
-        doc: Number of bone pairs (for linear blend skinning?).
+        doc: Number of bone pairs (for linear blend skinning).
       - id: bone_pairs_offset
         type: u4
         doc: Offset to bone pairs, specified in pairs of bytes.
@@ -128,7 +128,7 @@ types:
         doc: Number of clusters for this object. Purpose unknown.
       - id: cluster_offset
         type: u4
-        doc: Offset to clusters for this object. Purpose unknown.
+        doc: Offset to func_data for this object. Purpose unknown.
       - id: func_data_count
         type: u4
         doc: Unknown count.

@@ -103,12 +103,12 @@ export default class MuseumState {
 
   public nextRootFolder() {
     const newIndex = travelAlongLevel(this.fileIndex, FilePath.RootFolder, 1);
-    this.setFileIndex(newIndex + FilePath.RootFolder);
+    this.setFileIndex(newIndex + FilePath.File);
   }
 
   public previousRootFolder() {
     const newIndex = travelAlongLevel(this.fileIndex, FilePath.RootFolder, -1);
-    this.setFileIndex(newIndex + FilePath.RootFolder);
+    this.setFileIndex(newIndex + FilePath.File);
   }
 
   public getPossibleFilenames() {

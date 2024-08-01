@@ -143,7 +143,7 @@ declare namespace Mdl {
     skeletonDataOffset: number;
 
     /**
-     * Number of bone pairs (for linear blend skinning?).
+     * Number of bone pairs (for linear blend skinning).
      */
     bonePairsCount: number;
 
@@ -227,7 +227,7 @@ declare namespace Mdl {
     clusterCount: number;
 
     /**
-     * Offset to clusters for this object. Purpose unknown.
+     * Offset to func_data for this object. Purpose unknown.
      */
     clusterOffset: number;
 
