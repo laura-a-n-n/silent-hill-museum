@@ -1,11 +1,12 @@
 import { clientState } from "./objects/MuseumState";
 
+type UiDescription = {
+  open: boolean;
+  element: HTMLDivElement | undefined;
+  onClose?: () => void;
+};
 const uiDescriptions: {
-  [elementKey: string]: {
-    open: boolean;
-    element: HTMLDivElement | undefined;
-    onClose?: () => void;
-  };
+  [elementKey: string]: UiDescription;
 } = {
   aboutModal: { open: false, element: undefined },
   disclaimerModal: { open: false, element: undefined },
@@ -139,7 +140,10 @@ export const toggleElement = (
   }
 };
 
-export const onConfirm = (confirmCallback: () => void) => {
+export const onConfirm = (
+  confirmCallback: () => void,
+  uiDescription?: UiDescription
+) => {
   const confirmButton = document.querySelector(".modal.active .confirm-button");
   if (!(confirmButton instanceof HTMLButtonElement)) {
     throw Error("Did not find confirm button!");
@@ -148,6 +152,9 @@ export const onConfirm = (confirmCallback: () => void) => {
     return;
   }
   function onConfirm() {
+    if (uiDescription?.onClose) {
+      uiDescription.onClose = undefined;
+    }
     closeAllElements();
     confirmCallback();
     confirmButton?.removeEventListener("click", onConfirm);
@@ -166,9 +173,8 @@ export const showContentWarningModal = (
     uiDescriptions.contentWarningModal.onClose = declineCallback;
     onConfirm(() => {
       localStorage.setItem("contentWarningAccepted", "true");
-      uiDescriptions.contentWarningModal.onClose = undefined;
       confirmCallback();
-    });
+    }, uiDescriptions.contentWarningModal);
   } else {
     confirmCallback();
   }
