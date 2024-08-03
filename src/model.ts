@@ -53,7 +53,8 @@ export const createGeometry = (model: SilentHillModel, primitiveType = 0) => {
 
 const processSecondaryPrimitiveHeaders = (
   model: SilentHillModel,
-  geometry: BufferGeometry
+  geometry: BufferGeometry,
+  useOriginalNormals = false
 ) => {
   const secondaryPrimitiveHeaders =
     model.modelData.geometry.secondaryPrimitiveHeaders;
@@ -93,14 +94,16 @@ const processSecondaryPrimitiveHeaders = (
     })
   );
   geometry.setAttribute("position", new BufferAttribute(vertices, 3));
-  const normals = new Float32Array(
-    geometryData.secondaryVertexList.flatMap((vertex) => [
-      vertex.normalX,
-      vertex.normalY,
-      vertex.normalZ,
-    ])
-  );
-  geometry.setAttribute("normal", new BufferAttribute(normals, 3));
+  if (useOriginalNormals) {
+    const normals = new Float32Array(
+      geometryData.secondaryVertexList.flatMap((vertex) => [
+        vertex.normalX,
+        vertex.normalY,
+        vertex.normalZ,
+      ])
+    );
+    geometry.setAttribute("normal", new BufferAttribute(normals, 3));
+  }
   const uvs = new Float32Array(
     geometryData.secondaryVertexList.flatMap((vertex) => [vertex.u, vertex.v])
   );
