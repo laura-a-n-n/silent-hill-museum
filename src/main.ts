@@ -383,7 +383,6 @@ const render = () => {
       : undefined;
     if (secondaryGeometry) {
       secondaryGeometry.name = `${clientState.file}-secondary`;
-      secondaryGeometry.computeVertexNormals();
 
       let mesh: SkinnedMesh | Mesh;
       if (clientState.params["Skeleton Mode"]) {
