@@ -87,7 +87,7 @@ const processSecondaryPrimitiveHeaders = (
         console.warn(`Unused vertex? Index: ${vertexIndex}`);
         return [vector.x, vector.y, vector.z];
       }
-      const matrix = initialMatrices[vertex.initialMatrixIndex];
+      const matrix = initialMatrices[vertex.boneIndex];
       vector.applyMatrix4(matrix);
       return [vector.x, vector.y, vector.z];
     })
@@ -387,14 +387,15 @@ export const bindSkeletonToSecondaryGeometry = (
   geometry: BufferGeometry
 ) => {
   const geometryData = model.modelData.geometry;
+  const bonePairs = model.modelData.bonePairs;
   const boneIndices = geometryData.secondaryVertexList.flatMap((vertex) => [
-    vertex.initialMatrixIndex,
-    0,
-    0,
-    0,
+    vertex.boneIndex,
+    bonePairs[vertex.bonePairIndex0]?.child ?? 0,
+    bonePairs[vertex.bonePairIndex1]?.child ?? 0,
+    bonePairs[vertex.bonePairIndex2]?.child ?? 0,
   ]);
-  const boneWeights = geometryData.secondaryVertexList.flatMap(() => {
-    return [1, 0, 0, 0];
+  const boneWeights = geometryData.secondaryVertexList.flatMap((vertex) => {
+    return vertex.boneWeights;
   });
   geometry.setAttribute("skinIndex", new Uint16BufferAttribute(boneIndices, 4));
   geometry.setAttribute(

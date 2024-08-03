@@ -509,14 +509,13 @@ types:
       - id: z
         type: f4
         doc: The z-coordinate of the vertex.
-      - id: unknown_float0
+      - id: w
         type: f4
-      - id: unknown_float1
+        valid: 1
+      - id: bone_weights
         type: f4
-      - id: unknown_float2
-        type: f4
-      - id: unknown0
-        size: 8
+        repeat: expr
+        repeat-expr: 4
       - id: normal_x
         type: f4
         doc: The x-coordinate of the normal vector.
@@ -539,17 +538,22 @@ types:
         doc: The texture coordinate along the vertical axis (y), from 0 to 1.
       - id: unknown2
         size: 8
-      - id: initial_matrix_index
+      - id: bone_index
         type: u1
-        doc: Which initial matrix to multiply this vertex by.
-      - id: unknown_bytes0
+      - id: unknown3
         type: u1
-        repeat: expr
-        repeat-expr: 3
-      - id: unknown_bytes1
+      - id: bone_pair_index0
         type: u1
-        repeat: expr
-        repeat-expr: 4
+      - id: unknown4
+        type: u1
+      - id: bone_pair_index1
+        type: u1
+      - id: unknown5
+        type: u1
+      - id: bone_pair_index2
+        type: u1
+      - id: unknown6
+        type: u1
   texture_data:
     seq:
       - id: magic

@@ -533,10 +533,8 @@ declare namespace Mdl {
      * The z-coordinate of the vertex.
      */
     z: number;
-    unknownFloat0: number;
-    unknownFloat1: number;
-    unknownFloat2: number;
-    unknown0: Uint8Array;
+    w: number;
+    boneWeights: number[];
 
     /**
      * The x-coordinate of the normal vector.
@@ -564,13 +562,14 @@ declare namespace Mdl {
      */
     v: number;
     unknown2: Uint8Array;
-
-    /**
-     * Which initial matrix to multiply this vertex by.
-     */
-    initialMatrixIndex: number;
-    unknownBytes0: number[];
-    unknownBytes1: number[];
+    boneIndex: number;
+    unknown3: number;
+    bonePairIndex0: number;
+    unknown4: number;
+    bonePairIndex1: number;
+    unknown5: number;
+    bonePairIndex2: number;
+    unknown6: number;
   }
 }
 
