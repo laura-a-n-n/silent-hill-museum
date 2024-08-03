@@ -4,14 +4,18 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - ".github/**/*.yml"
+      - "**.md"
+      - "LICENSE"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     env:
-        REMOTE_USER: ${{ secrets.REMOTE_USER }}
-        REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+      REMOTE_USER: ${{ secrets.REMOTE_USER }}
+      REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
 
     steps:
       - name: Setup SSH
