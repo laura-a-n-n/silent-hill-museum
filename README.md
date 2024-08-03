@@ -23,7 +23,7 @@ Once everything is parsed, we use [Three.js](https://threejs.org/) to draw asset
 
 ## Installation
 
-To get started locally, you'll need a working installation of [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
+To get started locally, you'll need a working installation of [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). To view assets, you also need to have Silent Hill 2 Restless Dreams (PC) fully extracted.
 
 1. Clone the repository and enter the folder.
 
@@ -32,13 +32,21 @@ git clone https://github.com/laura-a-n-n/silent-hill-museum.git
 cd silent-hill-museum
 ```
 
-2. Install the dependencies.
+2. In `public`, make a new folder called `mdl` and copy `data/chr` and `data/chr2` from Silent Hill 2 into it.
+
+3. Install the dependencies.
 
 ```sh
 npm install
 ```
 
-3. Start the development server.
+4. Run the setup script.
+
+```sh
+npm run setup
+```
+
+5. Start the development server.
 
 ```sh
 npm run dev

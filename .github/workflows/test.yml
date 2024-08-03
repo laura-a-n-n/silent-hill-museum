@@ -1,6 +1,6 @@
 name: Run Tests
 
-on: [push, pull_request]
+on: push
 
 jobs:
   test:
@@ -26,4 +26,4 @@ jobs:
             exit 1
           fi
         env:
-            api_key: ${{ secrets.TEST_API_KEY }}
+          api_key: ${{ secrets.TEST_API_KEY }}

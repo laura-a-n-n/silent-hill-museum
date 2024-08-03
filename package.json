@@ -2,7 +2,7 @@
   "name": "silent-hill-museum",
   "description": "Explore Silent Hill models",
   "author": "Laura Ann",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "quick-test": "QUICK=1 npm run test",
+    "setup": "node scripts/setup.js",
     "ksy-all": "kaitai-struct-compiler --target all --outdir build ksy/mdl.ksy",
     "ksy-museum": "npm run ksy-js-module && npm run compress-js && npm run ksy-d-ts",
     "ksy-js-module": "kaitai-struct-compiler --target javascript --outdir public/js ksy/mdl.ksy",
