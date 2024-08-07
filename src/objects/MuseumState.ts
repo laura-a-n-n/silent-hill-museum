@@ -212,6 +212,18 @@ export const preferredParams: {
   "x_keygate.mdl": {
     "Invert Alpha": true,
   },
+  "x_ringcopper.mdl": {
+    "Alpha Test": 0,
+  },
+  "x_lighter.mdl": {
+    "Alpha Test": 0,
+  },
+  "rlxx_mar.mdl": {
+    "Render Side": "BackSide",
+  },
+  "rwp_colt.mdl": {
+    "Render Side": "BackSide",
+  },
 };
 export const cameraFix: {
   [File in MuseumFile]?: {
