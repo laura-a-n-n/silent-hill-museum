@@ -316,7 +316,25 @@ const render = () => {
     helper?.dispose();
     group.clear();
 
-    const material = createMaterial(
+    // temporary: separate into primary & secondary until specularity is implemented?
+    // likely need to create more materials for most accurate results
+    const primaryMaterial = createMaterial(
+      model,
+      clientState.params["Render Mode"] as MaterialType,
+      {
+        alphaTest: clientState.params["Alpha Test"],
+        transparent: false,
+        side: RenderSideMap[
+          clientState.params["Render Side"] as
+            | "DoubleSide"
+            | "FrontSide"
+            | "BackSide"
+        ],
+        opacity: clientState.params["Model Opacity"],
+      },
+      clientState.params["Invert Alpha"]
+    );
+    const secondaryMaterial = createMaterial(
       model,
       clientState.params["Render Mode"] as MaterialType,
       {
@@ -334,8 +352,8 @@ const render = () => {
     );
 
     if (
-      material instanceof Material &&
-      material.name === "uv-map" &&
+      primaryMaterial instanceof Material &&
+      primaryMaterial.name === "uv-map" &&
       clientState.params["Render Mode"] !== MaterialView.UV
     ) {
       textureFolder.hide();
@@ -358,7 +376,7 @@ const render = () => {
         const { skeleton, rootBoneIndices } = createSkeleton(model);
         bindSkeletonToGeometry(model, primaryGeometry);
 
-        mesh = new SkinnedMesh(primaryGeometry, material);
+        mesh = new SkinnedMesh(primaryGeometry, primaryMaterial);
         rootBoneIndices.forEach((boneIndex) =>
           mesh.add(skeleton.bones[boneIndex])
         );
@@ -370,7 +388,7 @@ const render = () => {
           scene.add(helper);
         }
       } else {
-        mesh = new Mesh(primaryGeometry, material);
+        mesh = new Mesh(primaryGeometry, primaryMaterial);
       }
       mesh.renderOrder = 1;
 
@@ -387,7 +405,7 @@ const render = () => {
 
       let mesh: SkinnedMesh | Mesh;
       if (clientState.params["Skeleton Mode"]) {
-        mesh = new SkinnedMesh(secondaryGeometry, material);
+        mesh = new SkinnedMesh(secondaryGeometry, secondaryMaterial);
 
         if (!primaryGeometry || !modelSkeleton) {
           const { skeleton, rootBoneIndices } = createSkeleton(model);
@@ -399,7 +417,7 @@ const render = () => {
         bindSkeletonToSecondaryGeometry(model, secondaryGeometry);
         (mesh as SkinnedMesh).bind(modelSkeleton);
       } else {
-        mesh = new Mesh(secondaryGeometry, material);
+        mesh = new Mesh(secondaryGeometry, secondaryMaterial);
       }
       mesh.renderOrder = 2;
 
