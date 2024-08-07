@@ -53,7 +53,8 @@ export const createGeometry = (model: SilentHillModel, primitiveType = 0) => {
 
 const processSecondaryPrimitiveHeaders = (
   model: SilentHillModel,
-  geometry: BufferGeometry
+  geometry: BufferGeometry,
+  useOriginalNormals = false
 ) => {
   const secondaryPrimitiveHeaders =
     model.modelData.geometry.secondaryPrimitiveHeaders;
@@ -87,20 +88,22 @@ const processSecondaryPrimitiveHeaders = (
         console.warn(`Unused vertex? Index: ${vertexIndex}`);
         return [vector.x, vector.y, vector.z];
       }
-      const matrix = initialMatrices[vertex.initialMatrixIndex];
+      const matrix = initialMatrices[vertex.boneIndex];
       vector.applyMatrix4(matrix);
       return [vector.x, vector.y, vector.z];
     })
   );
   geometry.setAttribute("position", new BufferAttribute(vertices, 3));
-  const normals = new Float32Array(
-    geometryData.secondaryVertexList.flatMap((vertex) => [
-      vertex.normalX,
-      vertex.normalY,
-      vertex.normalZ,
-    ])
-  );
-  geometry.setAttribute("normal", new BufferAttribute(normals, 3));
+  if (useOriginalNormals) {
+    const normals = new Float32Array(
+      geometryData.secondaryVertexList.flatMap((vertex) => [
+        vertex.normalX,
+        vertex.normalY,
+        vertex.normalZ,
+      ])
+    );
+    geometry.setAttribute("normal", new BufferAttribute(normals, 3));
+  }
   const uvs = new Float32Array(
     geometryData.secondaryVertexList.flatMap((vertex) => [vertex.u, vertex.v])
   );
@@ -387,14 +390,15 @@ export const bindSkeletonToSecondaryGeometry = (
   geometry: BufferGeometry
 ) => {
   const geometryData = model.modelData.geometry;
+  const bonePairs = model.modelData.bonePairs;
   const boneIndices = geometryData.secondaryVertexList.flatMap((vertex) => [
-    vertex.initialMatrixIndex,
-    0,
-    0,
-    0,
+    vertex.boneIndex,
+    bonePairs[vertex.bonePairIndex0]?.child ?? 0,
+    bonePairs[vertex.bonePairIndex1]?.child ?? 0,
+    bonePairs[vertex.bonePairIndex2]?.child ?? 0,
   ]);
-  const boneWeights = geometryData.secondaryVertexList.flatMap(() => {
-    return [1, 0, 0, 0];
+  const boneWeights = geometryData.secondaryVertexList.flatMap((vertex) => {
+    return vertex.boneWeights;
   });
   geometry.setAttribute("skinIndex", new Uint16BufferAttribute(boneIndices, 4));
   geometry.setAttribute(
