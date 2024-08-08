@@ -66,7 +66,7 @@ To make sure this step worked, try `npm run ksy-all` in the root directory of th
 
 2. Clone [this fork](https://github.com/laura-a-n-n/kaitai_struct_compiler) of aquach's TypeScript compiler for Kaitai Struct, as a sub-directory of this repository. It is the same feature, I just merged it with latest.
 
-3. Follow [these instructions](https://doc.kaitai.io/serialization.html#_building_the_compiler_from_source) for building Kaitai Struct from source in the newly cloned folder.
+3. Follow [these instructions](https://doc.kaitai.io/serialization.html#_building_the_compiler_from_source) for building Kaitai Struct from source in the newly cloned folder, except checkout `feature/typescript`, not the `serialization` branch.
 
 To test that everything worked, try `npm run ksy-museum` in the root folder of this repository.
 
