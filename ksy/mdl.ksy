@@ -310,8 +310,13 @@ types:
           min: 0
           max: 1
         doc: The fourth bone weight of the vertex.
-      - id: unknown_section
-        size: 8
+      - id: normals
+        type: s2
+        repeat: expr
+        repeat-expr: 3
+      - id: alignment
+        type: u2
+        valid: 0
       - id: u
         type: f4
         doc: The texture coordinate along the horizontal axis (x), from 0 to 1.

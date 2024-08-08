@@ -53,8 +53,7 @@ export const createGeometry = (model: SilentHillModel, primitiveType = 0) => {
 
 const processSecondaryPrimitiveHeaders = (
   model: SilentHillModel,
-  geometry: BufferGeometry,
-  useOriginalNormals = false
+  geometry: BufferGeometry
 ) => {
   const secondaryPrimitiveHeaders =
     model.modelData.geometry.secondaryPrimitiveHeaders;
@@ -74,36 +73,40 @@ const processSecondaryPrimitiveHeaders = (
   const initialMatrices = model.modelData.initialMatrices.map((matrix) =>
     transformationMatrixToMat4(matrix)
   );
-  const vertices = new Float32Array(
-    geometryData.secondaryVertexList.flatMap((vertex, vertexIndex) => {
-      const vector = new Vector3(vertex.x, vertex.y, vertex.z);
-      let primitiveIndex = 0;
-      for (; primitiveIndex < primitiveVertexSets.length; primitiveIndex++) {
-        if (primitiveVertexSets[primitiveIndex].has(vertexIndex)) {
-          break;
-        }
-      }
-      const header = secondaryPrimitiveHeaders[primitiveIndex];
-      if (header === undefined) {
-        console.warn(`Unused vertex? Index: ${vertexIndex}`);
-        return [vector.x, vector.y, vector.z];
-      }
-      const matrix = initialMatrices[vertex.boneIndex];
-      vector.applyMatrix4(matrix);
-      return [vector.x, vector.y, vector.z];
-    })
-  );
-  geometry.setAttribute("position", new BufferAttribute(vertices, 3));
-  if (useOriginalNormals) {
-    const normals = new Float32Array(
-      geometryData.secondaryVertexList.flatMap((vertex) => [
-        vertex.normalX,
-        vertex.normalY,
-        vertex.normalZ,
-      ])
+  const vertices: number[] = [];
+  const normals: number[] = [];
+  geometryData.secondaryVertexList.forEach((vertex, vertexIndex) => {
+    const positionVector = new Vector3(vertex.x, vertex.y, vertex.z);
+    const normalVector = new Vector3(
+      -vertex.normalX,
+      -vertex.normalY,
+      -vertex.normalZ
     );
-    geometry.setAttribute("normal", new BufferAttribute(normals, 3));
-  }
+    let primitiveIndex = 0;
+    for (; primitiveIndex < primitiveVertexSets.length; primitiveIndex++) {
+      if (primitiveVertexSets[primitiveIndex].has(vertexIndex)) {
+        break;
+      }
+    }
+    const header = secondaryPrimitiveHeaders[primitiveIndex];
+    if (header === undefined) {
+      console.warn(`Unused vertex? Index: ${vertexIndex}`);
+    } else {
+      const matrix = initialMatrices[vertex.boneIndex];
+      positionVector.applyMatrix4(matrix);
+      normalVector.applyMatrix4(matrix);
+    }
+    vertices.push(positionVector.x, positionVector.y, positionVector.z);
+    normals.push(normalVector.x, normalVector.y, normalVector.z);
+  });
+  geometry.setAttribute(
+    "position",
+    new BufferAttribute(new Float32Array(vertices), 3)
+  );
+  geometry.setAttribute(
+    "normal",
+    new BufferAttribute(new Float32Array(normals), 3)
+  );
   const uvs = new Float32Array(
     geometryData.secondaryVertexList.flatMap((vertex) => [vertex.u, vertex.v])
   );
@@ -121,6 +124,7 @@ const processSecondaryPrimitiveHeaders = (
   return geometry;
 };
 
+const MIN_SIGNED_INT = -0x8000;
 const processPrimitiveHeaders = (
   model: SilentHillModel,
   geometry: BufferGeometry
@@ -142,27 +146,39 @@ const processPrimitiveHeaders = (
   const initialMatrices = model.modelData.initialMatrices.map((matrix) =>
     transformationMatrixToMat4(matrix)
   );
-  const vertices = new Float32Array(
-    geometryData.vertexList.flatMap((vertex, vertexIndex) => {
-      const vector = new Vector3(vertex.x, vertex.y, vertex.z);
-      let primitiveIndex = 0;
-      for (; primitiveIndex < primitiveVertexSets.length; primitiveIndex++) {
-        if (primitiveVertexSets[primitiveIndex].has(vertexIndex)) {
-          break;
-        }
+  const vertices: number[] = [];
+  const normals: number[] = [];
+  geometryData.vertexList.forEach((vertex, vertexIndex) => {
+    const positionVector = new Vector3(vertex.x, vertex.y, vertex.z);
+    const normalVector = new Vector3(...vertex.normals).divideScalar(
+      MIN_SIGNED_INT
+    );
+    let primitiveIndex = 0;
+    for (; primitiveIndex < primitiveVertexSets.length; primitiveIndex++) {
+      if (primitiveVertexSets[primitiveIndex].has(vertexIndex)) {
+        break;
       }
-      const header = primitiveHeaders[primitiveIndex];
-      if (header === undefined) {
-        console.warn(`Unused vertex? Index: ${vertexIndex}`);
-        return [vector.x, vector.y, vector.z];
-      }
+    }
+    const header = primitiveHeaders[primitiveIndex];
+    if (header === undefined) {
+      console.warn(`Unused vertex? Index: ${vertexIndex}`);
+    } else {
       const boneIndices = header.body.boneIndices;
       const matrix = initialMatrices[boneIndices[vertex.boneIndex0]];
-      vector.applyMatrix4(matrix);
-      return [vector.x, vector.y, vector.z];
-    })
+      positionVector.applyMatrix4(matrix);
+      normalVector.applyMatrix4(matrix);
+    }
+    vertices.push(positionVector.x, positionVector.y, positionVector.z);
+    normals.push(normalVector.x, normalVector.y, normalVector.z);
+  });
+  geometry.setAttribute(
+    "position",
+    new BufferAttribute(new Float32Array(vertices), 3)
   );
-  geometry.setAttribute("position", new BufferAttribute(vertices, 3));
+  geometry.setAttribute(
+    "normal",
+    new BufferAttribute(new Float32Array(normals), 3)
+  );
   const uvs = new Float32Array(
     geometryData.vertexList.flatMap((vertex) => [vertex.u, vertex.v])
   );

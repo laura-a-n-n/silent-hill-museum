@@ -773,7 +773,8 @@ declare namespace Mdl {
      * The fourth bone weight of the vertex.
      */
     boneWeight3: number;
-    unknownSection: Uint8Array;
+    normals: number[];
+    alignment: number;
 
     /**
      * The texture coordinate along the horizontal axis (x), from 0 to 1.
