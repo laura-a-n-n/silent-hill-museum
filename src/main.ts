@@ -368,6 +368,7 @@ const render = () => {
     let modelSkeleton: Skeleton | undefined = undefined;
     if (primaryGeometry) {
       primaryGeometry.name = `${clientState.file}-primary`;
+      primaryGeometry.computeVertexNormals();
 
       let mesh: Mesh;
 
@@ -399,6 +400,7 @@ const render = () => {
       ? createGeometry(model, 1)
       : undefined;
     if (secondaryGeometry) {
+      secondaryGeometry.computeVertexNormals();
       secondaryGeometry.name = `${clientState.file}-secondary`;
 
       let mesh: SkinnedMesh | Mesh;
