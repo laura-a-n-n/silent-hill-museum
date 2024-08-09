@@ -5,6 +5,7 @@ import {
   DataTexture,
   DoubleSide,
   Float32BufferAttribute,
+  LinearFilter,
   Material,
   Matrix4,
   MeshStandardMaterial,
@@ -20,6 +21,7 @@ import decodeDXT from "decode-dxt";
 export const MaterialView = {
   Flat: "Flat color",
   UV: "UV visualization",
+  Wireframe: "Wireframe view",
   Textured: "Textured model",
 } as const;
 export type MaterialType = (typeof MaterialView)[keyof typeof MaterialView];
@@ -73,6 +75,11 @@ const processSecondaryPrimitiveHeaders = (
   const initialMatrices = model.modelData.initialMatrices.map((matrix) =>
     transformationMatrixToMat4(matrix)
   );
+  const normalsMatrices = initialMatrices.map((matrix) => {
+    const rotationMatrix = new Matrix4();
+    rotationMatrix.extractRotation(matrix);
+    return rotationMatrix.invert().transpose();
+  });
   const vertices: number[] = [];
   const normals: number[] = [];
   geometryData.secondaryVertexList.forEach((vertex, vertexIndex) => {
@@ -93,8 +100,9 @@ const processSecondaryPrimitiveHeaders = (
       console.warn(`Unused vertex? Index: ${vertexIndex}`);
     } else {
       const matrix = initialMatrices[vertex.boneIndex];
+      const normalsMatrix = normalsMatrices[vertex.boneIndex];
       positionVector.applyMatrix4(matrix);
-      normalVector.applyMatrix4(matrix);
+      normalVector.applyMatrix4(normalsMatrix);
     }
     vertices.push(positionVector.x, positionVector.y, positionVector.z);
     normals.push(normalVector.x, normalVector.y, normalVector.z);
@@ -146,6 +154,11 @@ const processPrimitiveHeaders = (
   const initialMatrices = model.modelData.initialMatrices.map((matrix) =>
     transformationMatrixToMat4(matrix)
   );
+  const normalsMatrices = initialMatrices.map((matrix) => {
+    const rotationMatrix = new Matrix4();
+    rotationMatrix.extractRotation(matrix);
+    return rotationMatrix.invert().transpose();
+  });
   const vertices: number[] = [];
   const normals: number[] = [];
   geometryData.vertexList.forEach((vertex, vertexIndex) => {
@@ -164,9 +177,11 @@ const processPrimitiveHeaders = (
       console.warn(`Unused vertex? Index: ${vertexIndex}`);
     } else {
       const boneIndices = header.body.boneIndices;
-      const matrix = initialMatrices[boneIndices[vertex.boneIndex0]];
+      const boneIndex = boneIndices[vertex.boneIndex0];
+      const matrix = initialMatrices[boneIndex];
+      const normalsMatrix = normalsMatrices[boneIndex];
       positionVector.applyMatrix4(matrix);
-      normalVector.applyMatrix4(matrix);
+      normalVector.applyMatrix4(normalsMatrix);
     }
     vertices.push(positionVector.x, positionVector.y, positionVector.z);
     normals.push(normalVector.x, normalVector.y, normalVector.z);
@@ -218,6 +233,7 @@ export const createMaterial = (
       material = new MeshStandardMaterial(materialParams);
       break;
     }
+    case MaterialView.Wireframe:
     case MaterialView.Textured: {
       const textureIds = model.modelData.textureMetadata?.mainTextureIds;
       let modelTextures = model.textureData?.textures;
@@ -246,6 +262,8 @@ export const createMaterial = (
           textureMap = textureMap.map((v, i) => (i % 4 === 3 ? 255 - v : v));
         }
         const dataTexture = new DataTexture(textureMap, width, height);
+        dataTexture.minFilter = LinearFilter;
+        dataTexture.magFilter = LinearFilter;
         dataTexture.needsUpdate = true;
         const materialParams = Object.assign(
           {},
@@ -253,6 +271,7 @@ export const createMaterial = (
             map: dataTexture,
             side: DoubleSide,
             transparent: true,
+            wireframe: materialType === MaterialView.Wireframe,
           } as MeshStandardMaterialParameters,
           parameters
         );
