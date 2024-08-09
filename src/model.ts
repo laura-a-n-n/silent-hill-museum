@@ -161,11 +161,9 @@ const processPrimitiveHeaders = (
   const normals: number[] = [];
   geometryData.vertexList.forEach((vertex, vertexIndex) => {
     const positionVector = new Vector3(vertex.x, vertex.y, vertex.z);
-    const normalVector = new Vector3(
-      vertex.normals[0],
-      vertex.normals[1],
-      vertex.normals[2]
-    ).divideScalar(MIN_SIGNED_INT);
+    const normalVector = new Vector3(...vertex.normals).divideScalar(
+      MIN_SIGNED_INT
+    );
     let primitiveIndex = 0;
     for (; primitiveIndex < primitiveVertexSets.length; primitiveIndex++) {
       if (primitiveVertexSets[primitiveIndex].has(vertexIndex)) {
