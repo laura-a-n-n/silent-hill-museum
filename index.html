@@ -145,7 +145,7 @@
         <a
           href="https://github.com/Murugo/Misc-Game-Research/tree/main/PS2/Silent%20Hill%202%2B3/Blender/addons/io_sh2_sh3">blender
           addon</a>
-        for both ps2 and pc models! he helped me fix the normals as of v0.1.8. also, murugo has
+        for both ps2 and pc models! he helped me fix the normals as of v0.1.10. also, murugo has
         reversed the blendshape data in models, as well as the animation and shadow formats!
       </li>
       <li>
@@ -214,8 +214,9 @@
         this gives the most accurate skeletons.
       </li>
       <li>
-        in material settings, be sure to set the blending mode to "alpha clip".
-        this will help textures render correctly.
+        in material settings, be sure to set the blend mode for any transparent parts
+        (including hair) to "alpha hashed". all non-transparent parts should be set to
+        "alpha clip".
       </li>
       <li class="no-margin-bottom">
         hide the armature if you don't want to see the bones.

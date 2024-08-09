@@ -169,6 +169,7 @@ export default class MuseumState {
     "Render Extra": true,
     "Skeleton Mode": this.glVersion === 2,
     "Visualize Skeleton": false,
+    "Visualize Normals": false,
 
     "Render Mode": MaterialView.Textured as string,
     "Ambient Color": 0xffffff,

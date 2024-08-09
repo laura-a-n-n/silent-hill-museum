@@ -39,6 +39,7 @@ import {
 import {
   OrbitControls,
   TransformControls,
+  VertexNormalsHelper,
   WebGL,
 } from "three/examples/jsm/Addons.js";
 import {
@@ -162,6 +163,7 @@ if (clientState.getGlVersion() === 2) {
   controlsGuiFolder.hide();
   geometryFolder.add(clientState.params, "Auto-Rotate");
 }
+geometryFolder.add(clientState.params, "Visualize Normals");
 geometryFolder.onFinishChange(() => render());
 
 const textureFolder = gui.addFolder("Texture");
@@ -368,7 +370,6 @@ const render = () => {
     let modelSkeleton: Skeleton | undefined = undefined;
     if (primaryGeometry) {
       primaryGeometry.name = `${clientState.file}-primary`;
-      primaryGeometry.computeVertexNormals();
 
       let mesh: Mesh;
 
@@ -392,6 +393,11 @@ const render = () => {
       }
       mesh.renderOrder = 1;
 
+      if (clientState.params["Visualize Normals"]) {
+        const normalsHelper = new VertexNormalsHelper(mesh, 8, 0xff0000);
+        scene.add(normalsHelper);
+      }
+
       console.log("Added primary geometry to mesh!", primaryGeometry);
       group.add(mesh);
     }
@@ -400,7 +406,6 @@ const render = () => {
       ? createGeometry(model, 1)
       : undefined;
     if (secondaryGeometry) {
-      secondaryGeometry.computeVertexNormals();
       secondaryGeometry.name = `${clientState.file}-secondary`;
 
       let mesh: SkinnedMesh | Mesh;

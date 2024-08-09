@@ -73,6 +73,11 @@ const processSecondaryPrimitiveHeaders = (
   const initialMatrices = model.modelData.initialMatrices.map((matrix) =>
     transformationMatrixToMat4(matrix)
   );
+  const normalsMatrices = initialMatrices.map((matrix) => {
+    const rotationMatrix = new Matrix4();
+    rotationMatrix.extractRotation(matrix);
+    return rotationMatrix.invert().transpose();
+  });
   const vertices: number[] = [];
   const normals: number[] = [];
   geometryData.secondaryVertexList.forEach((vertex, vertexIndex) => {
@@ -93,8 +98,9 @@ const processSecondaryPrimitiveHeaders = (
       console.warn(`Unused vertex? Index: ${vertexIndex}`);
     } else {
       const matrix = initialMatrices[vertex.boneIndex];
+      const normalsMatrix = normalsMatrices[vertex.boneIndex];
       positionVector.applyMatrix4(matrix);
-      normalVector.applyMatrix4(matrix);
+      normalVector.applyMatrix4(normalsMatrix);
     }
     vertices.push(positionVector.x, positionVector.y, positionVector.z);
     normals.push(normalVector.x, normalVector.y, normalVector.z);
@@ -146,13 +152,20 @@ const processPrimitiveHeaders = (
   const initialMatrices = model.modelData.initialMatrices.map((matrix) =>
     transformationMatrixToMat4(matrix)
   );
+  const normalsMatrices = initialMatrices.map((matrix) => {
+    const rotationMatrix = new Matrix4();
+    rotationMatrix.extractRotation(matrix);
+    return rotationMatrix.invert().transpose();
+  });
   const vertices: number[] = [];
   const normals: number[] = [];
   geometryData.vertexList.forEach((vertex, vertexIndex) => {
     const positionVector = new Vector3(vertex.x, vertex.y, vertex.z);
-    const normalVector = new Vector3(...vertex.normals).divideScalar(
-      MIN_SIGNED_INT
-    );
+    const normalVector = new Vector3(
+      vertex.normals[0],
+      vertex.normals[1],
+      vertex.normals[2]
+    ).divideScalar(MIN_SIGNED_INT);
     let primitiveIndex = 0;
     for (; primitiveIndex < primitiveVertexSets.length; primitiveIndex++) {
       if (primitiveVertexSets[primitiveIndex].has(vertexIndex)) {
@@ -164,9 +177,11 @@ const processPrimitiveHeaders = (
       console.warn(`Unused vertex? Index: ${vertexIndex}`);
     } else {
       const boneIndices = header.body.boneIndices;
-      const matrix = initialMatrices[boneIndices[vertex.boneIndex0]];
+      const boneIndex = boneIndices[vertex.boneIndex0];
+      const matrix = initialMatrices[boneIndex];
+      const normalsMatrix = normalsMatrices[boneIndex];
       positionVector.applyMatrix4(matrix);
-      normalVector.applyMatrix4(matrix);
+      normalVector.applyMatrix4(normalsMatrix);
     }
     vertices.push(positionVector.x, positionVector.y, positionVector.z);
     normals.push(normalVector.x, normalVector.y, normalVector.z);
