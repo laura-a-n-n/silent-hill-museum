@@ -126,7 +126,7 @@ button:hover {
   width: 75%;
   max-height: 75%;
   transform: translate(-50%, -50%);
-  overflow-y: scroll;
+  overflow-y: auto;
   background-color: rgba(0, 0, 0);
   border: 1px solid #aaa;
   padding: 1rem;
