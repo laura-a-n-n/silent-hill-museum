@@ -5,6 +5,21 @@ import StripifierFactory, {
 } from "./dist/stripifier.js";
 
 export default class Stripifier {
+  private static stripifier: StripifierInstance;
+
+  public static getInstance() {
+    if (!Stripifier.stripifier) {
+      Stripifier.setInstance(new StripifierInstance());
+    }
+    return Stripifier.stripifier;
+  }
+
+  private static setInstance(instance: StripifierInstance) {
+    this.stripifier = instance;
+  }
+}
+
+class StripifierInstance {
   public module: Promise<StripifierModule>;
 
   public constructor() {

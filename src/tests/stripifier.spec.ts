@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import Stripifier from "../wasm/stripifier/stripifier";
 
 test("should stripify", async () => {
-  const stripifier = new Stripifier();
+  const stripifier = Stripifier.getInstance();
   const array = [0, 1, 2, 3, 2, 1];
   const vertexCount = 4;
   const reply = await stripifier.triangleStripFromList(array, vertexCount);
@@ -10,7 +10,7 @@ test("should stripify", async () => {
 });
 
 test("should properly handle orientations with degenerate triangles", async () => {
-  const stripifier = new Stripifier();
+  const stripifier = Stripifier.getInstance();
   const array = [0, 1, 2, 1, 2, 3];
   const vertexCount = 4;
   const reply = await stripifier.triangleStripFromList(array, vertexCount);
@@ -22,7 +22,7 @@ test("should properly handle orientations with degenerate triangles", async () =
 });
 
 test("should throw on incorrect vertex count", async () => {
-  const stripifier = new Stripifier();
+  const stripifier = Stripifier.getInstance();
   const array = [0, 1, 2, 3, 2, 1, 4, 1, 2];
   const vertexCount = 4;
   expect(
@@ -31,7 +31,7 @@ test("should throw on incorrect vertex count", async () => {
 });
 
 test("should throw on invalid triangle list", async () => {
-  const stripifier = new Stripifier();
+  const stripifier = Stripifier.getInstance();
   const array = [0, 1, 2, 3, 4]; // its length is not divisible by 3
   const vertexCount = 5;
   expect(

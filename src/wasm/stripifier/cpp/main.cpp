@@ -12,7 +12,7 @@ extern "C"
         size_t index_count = size;
 
         // Allocate memory for the triangle strip
-        static std::vector<unsigned int> triangle_strip(meshopt_stripifyBound(index_count));
+        std::vector<unsigned int> triangle_strip(meshopt_stripifyBound(index_count));
 
         // Convert the triangle list to a triangle strip
         size_t strip_size = meshopt_stripify(triangle_strip.data(), triangle_array, index_count, vertex_count, 0);
