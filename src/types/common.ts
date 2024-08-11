@@ -1,3 +1,16 @@
+export type TypedArray =
+  | Int8Array
+  | Uint8Array
+  | Uint8ClampedArray
+  | Int16Array
+  | Uint16Array
+  | Int32Array
+  | Uint32Array
+  | Float32Array
+  | Float64Array
+  | BigInt64Array
+  | BigUint64Array;
+
 // Type to map indices to values
 export type IndexedValues<T extends readonly (readonly number[])[]> = {
   [K in keyof T]: T[K] extends readonly number[] ? T[K][number] : never;
