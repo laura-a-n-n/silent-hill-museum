@@ -12,7 +12,7 @@ import { MaterialView } from "../model";
 import { exportModel } from "../utils";
 import { Object3D, Vector3 } from "three";
 
-export const START_INDEX = constructIndex("chr", "favorites", "org.mdl");
+const START_INDEX = constructIndex("chr", "favorites", "org.mdl");
 const START_PATH_ARRAY = destructureIndex(START_INDEX);
 export const FilePath = {
   RootFolder: 0,
@@ -21,10 +21,31 @@ export const FilePath = {
 } as const;
 
 export default class MuseumState {
-  public constructor() {}
+  public constructor() {
+    if (!window) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const model = params.get("model");
+    const modelSplit = model?.split("-");
+
+    if (modelSplit && modelSplit.length !== 3) {
+      throw new Error(
+        "Invalid model format. Expected exactly three parts separated by hyphens."
+      );
+    } else if (!modelSplit) {
+      return;
+    }
+    modelSplit[2] += ".mdl";
+    this.defaultStartIndex = constructIndex(
+      ...(modelSplit as Parameters<typeof constructIndex>)
+    );
+    this.setFileIndex(this.defaultStartIndex);
+  }
 
   private fileIndex = START_INDEX;
   private filePathArray = START_PATH_ARRAY;
+  public defaultStartIndex = START_INDEX;
   private glVersion = 2;
   private currentObject?: Object3D;
   private onUpdate?: () => void;
@@ -145,6 +166,7 @@ export default class MuseumState {
     Folder: this.folder,
     Filename: this.file,
     "Lock To Folder": true,
+    "Sharable Link": false,
     "Next File": () => this.nextFile(),
     "Previous File": () => this.previousFile(),
     "Save Image": () => (this.params["Render This Frame"] = true),

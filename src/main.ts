@@ -13,7 +13,6 @@ import {
   clientState,
   defaultParams,
   preferredParams,
-  START_INDEX,
 } from "./objects/MuseumState";
 import { exportCanvas, fitCameraToSelection, RenderSideMap } from "./utils";
 import {
@@ -104,7 +103,7 @@ dataGuiFolder
         render();
       },
       () => {
-        clientState.setFileIndex(START_INDEX);
+        clientState.setFileIndex(clientState.defaultStartIndex);
         const controllers = gui.controllersRecursive();
         controllers.forEach((c) => {
           c.setValue(c.initialValue);
@@ -113,6 +112,29 @@ dataGuiFolder
     );
   })
   .listen();
+const updateLink = (sharable?: boolean) => {
+  const baseUrl =
+    window.location.protocol +
+    "//" +
+    window.location.host +
+    window.location.pathname;
+  if (sharable === false) {
+    window.history.pushState({ path: baseUrl }, "", baseUrl);
+    return;
+  }
+  const newUrl =
+    baseUrl +
+    "?model=" +
+    [
+      clientState.rootFolder,
+      clientState.folder,
+      clientState.file.split(".")[0],
+    ].join("-");
+  window.history.pushState({ path: newUrl }, "", newUrl);
+};
+dataGuiFolder
+  .add(clientState.params, "Sharable Link")
+  .onFinishChange(updateLink);
 dataGuiFolder.add(clientState.params, "Next File");
 dataGuiFolder.add(clientState.params, "Previous File");
 dataGuiFolder.add(clientState.params, "Save Image");
@@ -268,7 +290,7 @@ const render = () => {
           render();
         },
         () => {
-          clientState.setFileIndex(START_INDEX);
+          clientState.setFileIndex(clientState.defaultStartIndex);
           const controllers = gui.controllersRecursive();
           controllers.forEach((c) => {
             c.setValue(c.initialValue);
@@ -295,6 +317,10 @@ const render = () => {
     folderInput.setValue(clientState.folder);
     folderInput.options(clientState.getPossibleFolders());
     fileInput.options(clientState.getPossibleFilenames());
+
+    if (clientState.params["Sharable Link"] && !!history.pushState) {
+      updateLink();
+    }
   }
   loadModel(
     `/mdl/${clientState.rootFolder}/${clientState.folder}/${clientState.file}`

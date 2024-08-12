@@ -182,7 +182,7 @@ kbd {
 #keybinds-note {
   position: absolute;
   bottom: 0;
-  right: 0;
+  left: 0;
   font-size: 0.75rem;
   padding: 0.5rem;
   line-height: 0.5rem;
