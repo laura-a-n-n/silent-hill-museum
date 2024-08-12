@@ -2,7 +2,7 @@
   "name": "silent-hill-museum",
   "description": "Explore Silent Hill models",
   "author": "Laura Ann",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "type": "module",
   "scripts": {
     "dev": "vite",
