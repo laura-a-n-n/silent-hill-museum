@@ -58,7 +58,9 @@ if (!(appContainer instanceof HTMLDivElement)) {
 
 initializeModals();
 
-if (localStorage.getItem("visited") === null) {
+const params = new URLSearchParams(window.location.search);
+const bypassAboutModal = params.get("bypass-modal");
+if (!bypassAboutModal && localStorage.getItem("visited") === null) {
   toggleWithBackground("aboutModal", true);
   localStorage.setItem("visited", "true");
 }
