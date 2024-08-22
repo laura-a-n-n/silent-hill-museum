@@ -161,6 +161,10 @@ export default class MuseumState {
     this.currentObject = object;
   }
 
+  public getCurrentObject() {
+    return this.currentObject;
+  }
+
   public params = {
     Scenario: "Main Scenario",
     Folder: this.folder,
