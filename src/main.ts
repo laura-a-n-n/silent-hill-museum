@@ -386,7 +386,7 @@ const render = () => {
       clientState.params["Render Mode"] as MaterialType,
       {
         alphaTest: clientState.params["Alpha Test"],
-        transparent: false,
+        transparent: clientState.params["Visualize Skeleton"],
         side: RenderSideMap[
           clientState.params["Render Side"] as
             | "DoubleSide"
@@ -402,7 +402,9 @@ const render = () => {
       clientState.params["Render Mode"] as MaterialType,
       {
         alphaTest: clientState.params["Alpha Test"],
-        transparent: clientState.params.Transparency,
+        transparent:
+          clientState.params.Transparency ||
+          clientState.params["Visualize Skeleton"],
         side: RenderSideMap[
           clientState.params["Render Side"] as
             | "DoubleSide"
