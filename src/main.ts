@@ -264,7 +264,7 @@ onWindowResize();
 window.addEventListener("resize", onWindowResize);
 
 const raycastHelper = new RaycastHelper(renderer, camera);
-const spheres: Object3D[] = [];
+const raycastTargets: Object3D[] = [];
 let raycastTargetsGenerated = false;
 const onClick = (event: MouseEvent) => {
   if (!clientState.params["Bone Controls"]) {
@@ -278,7 +278,7 @@ const onClick = (event: MouseEvent) => {
     if (!bones || !bones.length || !currentObject) {
       return;
     }
-    const cast = raycastHelper.cast(event, spheres);
+    const cast = raycastHelper.cast(event, raycastTargets);
     const nearest = cast.shift();
     const parentBone = nearest?.object.parent;
     if (parentBone instanceof Bone) {
@@ -377,6 +377,7 @@ const render = () => {
     );
     helper?.dispose();
     group.clear();
+    raycastTargets.length = 0;
     raycastTargetsGenerated = false;
 
     // temporary: separate into primary & secondary until specularity is implemented?
@@ -544,7 +545,7 @@ const render = () => {
               transparent: true,
             });
             const mesh = new Mesh(sphere, material);
-            spheres.push(mesh);
+            raycastTargets.push(mesh);
             bone.add(mesh);
           });
         }
