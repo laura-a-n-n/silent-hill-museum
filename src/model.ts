@@ -17,6 +17,7 @@ import {
 import SilentHillModel from "./types/Mdl";
 import { transformationMatrixToMat4 } from "./utils";
 import decodeDXT from "decode-dxt";
+import logger from "./objects/Logger";
 
 export const MaterialView = {
   Flat: "Flat color",
@@ -34,7 +35,7 @@ export const createGeometry = (model: SilentHillModel, primitiveType = 0) => {
     if (primitiveHeaders && primitiveHeaders.length !== 0) {
       processPrimitiveHeaders(model, geometry);
     } else {
-      console.warn("Requested primary primitive headers, but model has none.");
+      logger.warn("Requested primary primitive headers, but model has none.");
       return undefined;
     }
   } else {
@@ -43,9 +44,7 @@ export const createGeometry = (model: SilentHillModel, primitiveType = 0) => {
     if (secondaryPrimitiveHeaders && secondaryPrimitiveHeaders.length !== 0) {
       processSecondaryPrimitiveHeaders(model, geometry);
     } else {
-      console.warn(
-        "Requested secondary primitive headers, but model has none."
-      );
+      logger.warn("Requested secondary primitive headers, but model has none.");
       return undefined;
     }
   }
@@ -97,7 +96,7 @@ const processSecondaryPrimitiveHeaders = (
     }
     const header = secondaryPrimitiveHeaders[primitiveIndex];
     if (header === undefined) {
-      console.warn(`Unused vertex? Index: ${vertexIndex}`);
+      logger.warn(`Unused vertex? Index: ${vertexIndex}`);
     } else {
       const matrix = initialMatrices[vertex.boneIndex];
       const normalsMatrix = normalsMatrices[vertex.boneIndex];
@@ -174,7 +173,7 @@ const processPrimitiveHeaders = (
     }
     const header = primitiveHeaders[primitiveIndex];
     if (header === undefined) {
-      console.warn(`Unused vertex? Index: ${vertexIndex}`);
+      logger.warn(`Unused vertex? Index: ${vertexIndex}`);
     } else {
       const boneIndices = header.body.boneIndices;
       const boneIndex = boneIndices[vertex.boneIndex0];
@@ -238,7 +237,7 @@ export const createMaterial = (
       const textureIds = model.modelData.textureMetadata?.mainTextureIds;
       let modelTextures = model.textureData?.textures;
       if (!modelTextures) {
-        console.warn("This model has no textures.");
+        logger.warn("This model has no textures.");
         return createMaterial(model, MaterialView.UV);
       }
       modelTextures = modelTextures.sort(
@@ -370,7 +369,7 @@ export const bindSkeletonToGeometry = (
     }
     const header = primitiveHeaders[primitiveIndex];
     if (header === undefined) {
-      console.warn(`Unused vertex? Index: ${vertexIndex}`);
+      logger.warn(`Unused vertex? Index: ${vertexIndex}`);
       return [0, 0, 0, 0];
     }
     const primitiveBoneIndices = header.body.boneIndices;

@@ -1,3 +1,5 @@
+import logger from "./Logger";
+
 export type KeyModifier = "control" | "meta" | "shift" | "alt";
 // prettier-ignore
 export type Key =
@@ -91,14 +93,14 @@ export default class KeybindManager {
     const keyCombination = keysDown.join("+").toLowerCase() as KeyCombination;
 
     if (this.debugMode) {
-      console.log("Key combination detected", keyCombination);
+      logger.debug("Key combination detected", keyCombination);
     }
 
     const action = this.keybindMap.get(keyCombination);
     action?.(event);
 
     if (this.debugMode && action) {
-      console.log("Keybind action", this.keybindMap.get(keyCombination));
+      logger.debug("Keybind action", this.keybindMap.get(keyCombination));
     }
   }
 }

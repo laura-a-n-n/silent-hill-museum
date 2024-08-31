@@ -48,8 +48,9 @@ import {
   toggleWithBackground,
 } from "./modals";
 import { chrFolders, MuseumFile } from "./files";
-import "./keybinds";
 import GUI from "lil-gui";
+import logger from "./objects/Logger";
+import "./keybinds";
 
 const appContainer = document.getElementById("app");
 if (!(appContainer instanceof HTMLDivElement)) {
@@ -327,7 +328,7 @@ const render = () => {
   loadModel(
     `/mdl/${clientState.rootFolder}/${clientState.folder}/${clientState.file}`
   ).then((model) => {
-    console.log("Parsed model structure", model);
+    logger.debug("Parsed model structure", model);
     scene.clear();
     const light = new AmbientLight(
       clientState.params["Ambient Color"],
@@ -427,7 +428,7 @@ const render = () => {
         scene.add(normalsHelper);
       }
 
-      console.log("Added primary geometry to mesh!", primaryGeometry);
+      logger.debug("Added primary geometry to mesh!", primaryGeometry);
       group.add(mesh);
     }
 
@@ -455,7 +456,7 @@ const render = () => {
       }
       mesh.renderOrder = 2;
 
-      console.log("Added secondary geometry to mesh!", secondaryGeometry);
+      logger.debug("Added secondary geometry to mesh!", secondaryGeometry);
       group.add(mesh);
     }
 

@@ -17,6 +17,7 @@ import {
 } from "three";
 import { GLTFExporter, OrbitControls } from "three/examples/jsm/Addons.js";
 import { TransformationMatrix } from "./types/Mdl";
+import logger from "./objects/Logger";
 
 export const RenderSideMap = {
   DoubleSide,
@@ -100,7 +101,7 @@ export function exportModel(object: Object3D, filename: string) {
       }
     },
     (error) => {
-      console.warn("Could not export the scene. An error occurred: ", error);
+      logger.warn("Could not export the scene. An error occurred: ", error);
     },
     { onlyVisible: false }
   );
