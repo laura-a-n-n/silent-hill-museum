@@ -34,6 +34,9 @@ import {
   Clock,
   WebGL1Renderer,
   Material,
+  SphereGeometry,
+  MeshBasicMaterial,
+  Bone,
 } from "three";
 import {
   OrbitControls,
@@ -50,6 +53,7 @@ import {
 import { chrFolders, MuseumFile } from "./files";
 import "./keybinds";
 import GUI from "lil-gui";
+import RaycastHelper from "./objects/RaycastHelper";
 
 const appContainer = document.getElementById("app");
 if (!(appContainer instanceof HTMLDivElement)) {
@@ -259,6 +263,33 @@ const onWindowResize = () => {
 onWindowResize();
 window.addEventListener("resize", onWindowResize);
 
+const raycastHelper = new RaycastHelper(renderer, camera);
+const raycastTargets: Object3D[] = [];
+let raycastTargetsGenerated = false;
+const onClick = (event: MouseEvent) => {
+  if (!clientState.params["Bone Controls"]) {
+    return;
+  }
+  const currentObject = clientState.getCurrentObject();
+  for (const skinnedMesh of currentObject?.children.filter(
+    (object) => object instanceof SkinnedMesh
+  ) ?? []) {
+    const bones = skinnedMesh.skeleton.bones;
+    if (!bones || !bones.length || !currentObject) {
+      return;
+    }
+    const cast = raycastHelper.cast(event, raycastTargets);
+    const nearest = cast.shift();
+    const parentBone = nearest?.object.parent;
+    if (parentBone instanceof Bone) {
+      clientState.params["Selected Bone"] = bones.indexOf(parentBone);
+      transformControls.removeFromParent();
+      break;
+    }
+  }
+};
+appContainer.addEventListener("click", onClick);
+
 const scene = new Scene();
 const pmremGenerator = new PMREMGenerator(renderer);
 scene.environment = pmremGenerator.fromScene(scene).texture;
@@ -346,6 +377,8 @@ const render = () => {
     );
     helper?.dispose();
     group.clear();
+    raycastTargets.length = 0;
+    raycastTargetsGenerated = false;
 
     // temporary: separate into primary & secondary until specularity is implemented?
     // likely need to create more materials for most accurate results
@@ -354,7 +387,7 @@ const render = () => {
       clientState.params["Render Mode"] as MaterialType,
       {
         alphaTest: clientState.params["Alpha Test"],
-        transparent: false,
+        transparent: clientState.params["Visualize Skeleton"],
         side: RenderSideMap[
           clientState.params["Render Side"] as
             | "DoubleSide"
@@ -370,7 +403,9 @@ const render = () => {
       clientState.params["Render Mode"] as MaterialType,
       {
         alphaTest: clientState.params["Alpha Test"],
-        transparent: clientState.params.Transparency,
+        transparent:
+          clientState.params.Transparency ||
+          clientState.params["Visualize Skeleton"],
         side: RenderSideMap[
           clientState.params["Render Side"] as
             | "DoubleSide"
@@ -499,6 +534,21 @@ const render = () => {
         );
         transformControls.size = 0.5;
         scene.add(transformControls);
+
+        if (!raycastTargetsGenerated) {
+          raycastTargetsGenerated = true;
+          const bones = modelSkeleton?.bones ?? [];
+          bones.forEach((bone) => {
+            const sphere = new SphereGeometry(8);
+            const material = new MeshBasicMaterial({
+              opacity: 0,
+              transparent: true,
+            });
+            const mesh = new Mesh(sphere, material);
+            raycastTargets.push(mesh);
+            bone.add(mesh);
+          });
+        }
       } else if (
         transformControls.parent &&
         !clientState.params["Bone Controls"]
