@@ -31,4 +31,4 @@ __pycache__
 # Project-specific
 kaitai_struct_compiler
 public/mdl
-!src/wasm/stripifier/dist
+!src/wasm/**/dist
