@@ -14,7 +14,7 @@ export default class EditorState {
     "Model Type": SilentHillModelTypes.BaseModel,
     "Auto-Scale": Autoscale.BoundingBox,
     "Flip Y": false,
-    "Bonemap Method": BonemapMethod["By Name"],
+    "Bonemap Method": BonemapMethod["Collapse"],
     "Model Scale": 1,
     "Model Controls": false,
     "Show Original": false,
