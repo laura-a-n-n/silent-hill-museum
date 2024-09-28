@@ -2,6 +2,7 @@ import {
   Bone,
   BufferAttribute,
   BufferGeometry,
+  ClampToEdgeWrapping,
   DataTexture,
   DoubleSide,
   Float32BufferAttribute,
@@ -13,10 +14,12 @@ import {
   Skeleton,
   Uint16BufferAttribute,
   Vector3,
+  Wrapping,
 } from "three";
-import SilentHillModel from "./types/Mdl";
-import { transformationMatrixToMat4 } from "./utils";
+import SilentHillModel from "./kaitai/Mdl";
+import { MIN_SIGNED_INT, transformationMatrixToMat4 } from "./utils";
 import decodeDXT from "decode-dxt";
+import logger from "./objects/Logger";
 
 export const MaterialView = {
   Flat: "Flat color",
@@ -34,17 +37,20 @@ export const createGeometry = (model: SilentHillModel, primitiveType = 0) => {
     if (primitiveHeaders && primitiveHeaders.length !== 0) {
       processPrimitiveHeaders(model, geometry);
     } else {
-      console.warn("Requested primary primitive headers, but model has none.");
+      logger.warn("Requested opaque primitive headers, but model has none.");
       return undefined;
     }
   } else {
-    const secondaryPrimitiveHeaders =
-      model.modelData.geometry.secondaryPrimitiveHeaders;
-    if (secondaryPrimitiveHeaders && secondaryPrimitiveHeaders.length !== 0) {
-      processSecondaryPrimitiveHeaders(model, geometry);
+    const transparentPrimitiveHeaders =
+      model.modelData.geometry.transparentPrimitiveHeaders;
+    if (
+      transparentPrimitiveHeaders &&
+      transparentPrimitiveHeaders.length !== 0
+    ) {
+      processTransparentPrimitiveHeaders(model, geometry);
     } else {
-      console.warn(
-        "Requested secondary primitive headers, but model has none."
+      logger.warn(
+        "Requested transparent primitive headers, but model has none."
       );
       return undefined;
     }
@@ -53,18 +59,18 @@ export const createGeometry = (model: SilentHillModel, primitiveType = 0) => {
   return geometry;
 };
 
-const processSecondaryPrimitiveHeaders = (
+const processTransparentPrimitiveHeaders = (
   model: SilentHillModel,
   geometry: BufferGeometry
 ) => {
-  const secondaryPrimitiveHeaders =
-    model.modelData.geometry.secondaryPrimitiveHeaders;
+  const transparentPrimitiveHeaders =
+    model.modelData.geometry.transparentPrimitiveHeaders;
   const geometryData = model.modelData.geometry;
-  const primitiveStartIndices = secondaryPrimitiveHeaders
+  const primitiveStartIndices = transparentPrimitiveHeaders
     .map((header) => header.body.primitiveStartIndex)
     .sort((a, b) => a - b);
-  const stripIndices = geometryData.secondaryTriangleIndices.array;
-  const lastPrimitiveHeader = secondaryPrimitiveHeaders.at(-1)!.body;
+  const stripIndices = geometryData.transparentTriangleIndices.array;
+  const lastPrimitiveHeader = transparentPrimitiveHeaders.at(-1)!.body;
   const triangleCount =
     lastPrimitiveHeader.primitiveStartIndex +
     lastPrimitiveHeader.primitiveLength;
@@ -82,7 +88,7 @@ const processSecondaryPrimitiveHeaders = (
   });
   const vertices: number[] = [];
   const normals: number[] = [];
-  geometryData.secondaryVertexList.forEach((vertex, vertexIndex) => {
+  geometryData.transparentVertexList.forEach((vertex, vertexIndex) => {
     const positionVector = new Vector3(vertex.x, vertex.y, vertex.z);
     const normalVector = new Vector3(
       -vertex.normalX,
@@ -95,9 +101,9 @@ const processSecondaryPrimitiveHeaders = (
         break;
       }
     }
-    const header = secondaryPrimitiveHeaders[primitiveIndex];
+    const header = transparentPrimitiveHeaders[primitiveIndex];
     if (header === undefined) {
-      console.warn(`Unused vertex? Index: ${vertexIndex}`);
+      logger.warn(`Unused vertex? Index: ${vertexIndex}`);
     } else {
       const matrix = initialMatrices[vertex.boneIndex];
       const normalsMatrix = normalsMatrices[vertex.boneIndex];
@@ -116,7 +122,7 @@ const processSecondaryPrimitiveHeaders = (
     new BufferAttribute(new Float32Array(normals), 3)
   );
   const uvs = new Float32Array(
-    geometryData.secondaryVertexList.flatMap((vertex) => [vertex.u, vertex.v])
+    geometryData.transparentVertexList.flatMap((vertex) => [vertex.u, vertex.v])
   );
   geometry.setAttribute("uv", new BufferAttribute(uvs, 2));
   const textureIdMap = model.modelData.textureMetadata?.texturePairs.map(
@@ -126,13 +132,12 @@ const processSecondaryPrimitiveHeaders = (
     geometry.addGroup(
       group.start,
       group.count,
-      textureIdMap[secondaryPrimitiveHeaders[index].body.textureIndex ?? 0]
+      textureIdMap[transparentPrimitiveHeaders[index].body.textureIndex ?? 0]
     );
   });
   return geometry;
 };
 
-const MIN_SIGNED_INT = -0x8000;
 const processPrimitiveHeaders = (
   model: SilentHillModel,
   geometry: BufferGeometry
@@ -174,7 +179,7 @@ const processPrimitiveHeaders = (
     }
     const header = primitiveHeaders[primitiveIndex];
     if (header === undefined) {
-      console.warn(`Unused vertex? Index: ${vertexIndex}`);
+      logger.warn(`Unused vertex? Index: ${vertexIndex}`);
     } else {
       const boneIndices = header.body.boneIndices;
       const boneIndex = boneIndices[vertex.boneIndex0];
@@ -215,7 +220,9 @@ export const createMaterial = (
   model: SilentHillModel,
   materialType: MaterialType = MaterialView.Textured,
   parameters?: MeshStandardMaterialParameters,
-  invertAlpha: boolean = false
+  invertAlpha: boolean = false,
+  wrapMode?: Wrapping,
+  baseMaterial?: Material[]
 ): Material | Material[] => {
   let material: Material | Material[];
   let textureMap = defaultDiffuseMap;
@@ -238,33 +245,44 @@ export const createMaterial = (
       const textureIds = model.modelData.textureMetadata?.mainTextureIds;
       let modelTextures = model.textureData?.textures;
       if (!modelTextures) {
-        console.warn("This model has no textures.");
+        logger.warn("This model has no textures.");
         return createMaterial(model, MaterialView.UV);
       }
       modelTextures = modelTextures.sort(
         (a, b) =>
           textureIds.indexOf(a.textureId) - textureIds.indexOf(b.textureId)
       );
-      material = modelTextures.map((texture): MeshStandardMaterial => {
-        if (texture !== undefined) {
-          const ddsBuffer = new Uint8Array(texture.data);
-          [width, height] = [texture.width, texture.height];
-          const ddsDataView = new DataView(ddsBuffer.buffer);
-          const rgbaData = decodeDXT(
-            ddsDataView,
-            width,
-            height,
-            DxtLookup[texture.spriteHeaders[0].format as keyof typeof DxtLookup]
-          );
-          textureMap = rgbaData;
-        }
-        if (invertAlpha) {
-          textureMap = textureMap.map((v, i) => (i % 4 === 3 ? 255 - v : v));
-        }
-        const dataTexture = new DataTexture(textureMap, width, height);
-        dataTexture.minFilter = LinearFilter;
-        dataTexture.magFilter = LinearFilter;
-        dataTexture.needsUpdate = true;
+      const dataTextures =
+        baseMaterial?.map(
+          (material) => material instanceof MeshStandardMaterial && material.map
+        ) ??
+        modelTextures.map((texture) => {
+          if (texture !== undefined) {
+            const ddsBuffer = new Uint8Array(texture.data);
+            [width, height] = [texture.width, texture.height];
+            const ddsDataView = new DataView(ddsBuffer.buffer);
+            const rgbaData = decodeDXT(
+              ddsDataView,
+              width,
+              height,
+              DxtLookup[
+                texture.spriteHeaders[0].format as keyof typeof DxtLookup
+              ]
+            );
+            textureMap = rgbaData;
+          }
+          if (invertAlpha) {
+            textureMap = textureMap.map((v, i) => (i % 4 === 3 ? 255 - v : v));
+          }
+          const dataTexture = new DataTexture(textureMap, width, height);
+          dataTexture.minFilter = LinearFilter;
+          dataTexture.magFilter = LinearFilter;
+          dataTexture.wrapS = wrapMode ? wrapMode : ClampToEdgeWrapping;
+          dataTexture.wrapT = wrapMode ? wrapMode : ClampToEdgeWrapping;
+          dataTexture.needsUpdate = true;
+          return dataTexture;
+        });
+      material = dataTextures.map((dataTexture) => {
         const materialParams = Object.assign(
           {},
           {
@@ -312,15 +330,13 @@ export const createSkeleton = (model: SilentHillModel) => {
   const rootBoneIndices: number[] = [];
   const skeletonRepresentation = model.modelData.skeletonTree;
   const initialMatrices = model.modelData.initialMatrices;
-  const flipY = new Matrix4();
-  flipY.makeScale(1, 1, 1);
   for (let i = 0; i < skeletonRepresentation.length; i++) {
     const parentBoneIndex = skeletonRepresentation[i];
     if (parentBoneIndex === 255) {
       // root bone
       const bone = new Bone();
       bone.applyMatrix4(transformationMatrixToMat4(initialMatrices[i]));
-      bone.applyMatrix4(flipY);
+      bone.name = `Bone_${i}`;
       bones.push(bone);
       rootBoneIndices.push(i);
       continue;
@@ -334,6 +350,7 @@ export const createSkeleton = (model: SilentHillModel) => {
     bone.applyMatrix4(
       transformationMatrixToMat4(initialMatrices[parentBoneIndex]).invert()
     );
+    bone.name = `Bone_${i}`;
     parentBone.add(bone);
     bones.push(bone);
   }
@@ -370,7 +387,7 @@ export const bindSkeletonToGeometry = (
     }
     const header = primitiveHeaders[primitiveIndex];
     if (header === undefined) {
-      console.warn(`Unused vertex? Index: ${vertexIndex}`);
+      logger.warn(`Unused vertex? Index: ${vertexIndex}`);
       return [0, 0, 0, 0];
     }
     const primitiveBoneIndices = header.body.boneIndices;
@@ -405,12 +422,18 @@ export const bindSkeletonToGeometry = (
     ];
   });
   const boneWeights = geometryData.vertexList.flatMap((vertex) => {
-    return [
-      vertex.boneWeight0,
-      vertex.boneWeight1,
-      vertex.boneWeight2,
-      vertex.boneWeight3,
+    const sum =
+      vertex.boneWeight0 +
+      vertex.boneWeight1 +
+      vertex.boneWeight2 +
+      vertex.boneWeight3;
+    const weights = [
+      vertex.boneWeight0 / sum,
+      vertex.boneWeight1 / sum,
+      vertex.boneWeight2 / sum,
+      vertex.boneWeight3 / sum,
     ];
+    return weights;
   });
   geometry.setAttribute("skinIndex", new Uint16BufferAttribute(boneIndices, 4));
   geometry.setAttribute(
@@ -420,19 +443,19 @@ export const bindSkeletonToGeometry = (
   return { boneIndices, boneWeights };
 };
 
-export const bindSkeletonToSecondaryGeometry = (
+export const bindSkeletonToTransparentGeometry = (
   model: SilentHillModel,
   geometry: BufferGeometry
 ) => {
   const geometryData = model.modelData.geometry;
   const bonePairs = model.modelData.bonePairs;
-  const boneIndices = geometryData.secondaryVertexList.flatMap((vertex) => [
+  const boneIndices = geometryData.transparentVertexList.flatMap((vertex) => [
     vertex.boneIndex,
     bonePairs[vertex.bonePairIndex0]?.child ?? 0,
     bonePairs[vertex.bonePairIndex1]?.child ?? 0,
     bonePairs[vertex.bonePairIndex2]?.child ?? 0,
   ]);
-  const boneWeights = geometryData.secondaryVertexList.flatMap((vertex) => {
+  const boneWeights = geometryData.transparentVertexList.flatMap((vertex) => {
     return vertex.boneWeights;
   });
   geometry.setAttribute("skinIndex", new Uint16BufferAttribute(boneIndices, 4));

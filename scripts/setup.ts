@@ -6,19 +6,24 @@ const mkdir = promisify(_mkdir);
 const copyFile = promisify(_copyFile);
 const stat = promisify(_stat);
 
-async function ensureDir(dir, makeIfNotExists = true) {
+async function ensureDir(
+  dir: string,
+  makeIfNotExists: boolean = true
+): Promise<void> {
   try {
     await stat(dir);
-  } catch (error) {
+  } catch (error: any) {
     if (makeIfNotExists && error.code === "ENOENT") {
       await mkdir(dir, { recursive: true });
     } else if (error.code === "ENOENT") {
+      throw new Error(`Directory not found: ${dir}`);
+    } else {
       throw error;
     }
   }
 }
 
-async function copyFilesToFavorites(files) {
+async function copyFilesToFavorites(files: string[]): Promise<void> {
   const mdlDirectory = join(process.cwd(), "public", "mdl");
   const favoritesDirectory = join(
     process.cwd(),
@@ -31,11 +36,11 @@ async function copyFilesToFavorites(files) {
   try {
     await ensureDir(mdlDirectory, false);
   } catch {
-    throw Error(
+    throw new Error(
       "The mdl folder was not found. Please copy mdl into the public directory."
     );
-    return;
   }
+
   await ensureDir(favoritesDirectory);
 
   for (const file of files) {
@@ -46,7 +51,7 @@ async function copyFilesToFavorites(files) {
   }
 }
 
-const filesToCopy = [
+const filesToCopy: string[] = [
   "public/mdl/chr/agl/agl.mdl",
   "public/mdl/chr/item/inu.mdl",
   "public/mdl/chr/lau/lau.mdl",

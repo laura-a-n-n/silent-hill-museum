@@ -1,0 +1,13 @@
+diff --git a/node_modules/dxt-js/src/dxt.js b/node_modules/dxt-js/src/dxt.js
+index 4e9d523..e55ae74 100644
+--- a/node_modules/dxt-js/src/dxt.js
++++ b/node_modules/dxt-js/src/dxt.js
+@@ -23,7 +23,7 @@ function pointerFromData(sourceData) {
+  * @return {Uint8Array}
+  */
+ function getDataFromPointer(pointer, size) {
+-    return new Uint8Array(libSquish.HEAPU8.buffer, pointer, size);
++    return new Uint8Array(libSquish.HEAPU8.buffer, pointer, size).slice();
+ }
+ 
+ // export "raw" function for use by other emscripten projects

@@ -84,20 +84,20 @@ types:
       - id: primitive_headers_offset
         type: u4
         doc: Offset to headers describing each primitive.
-      - id: secondary_primitive_headers_count
+      - id: transparent_primitive_headers_count
         type: u4
         doc: |
-          Number of secondary primitive headers, used for separate parts such
+          Number of transparent primitive headers, used for separate parts such
           as hair? On the PS2 version, this field is called "n_vu0_parts",
           suggesting that these were handled by the VU0 coprocessor, while
-          the primary primitive headers were handled by the VU1 coprocessor.
-      - id: secondary_primitive_headers_offset
+          the opaque primitive headers were handled by the VU1 coprocessor.
+      - id: transparent_primitive_headers_offset
         type: u4
         doc: |
-          Offset to secondary primitive headers, used for separate parts such
+          Offset to transparent primitive headers, used for separate parts such
           as hair? On the PS2 version, this field is called "n_vu0_parts",
           suggesting that these were handled by the VU0 coprocessor, while
-          the primary primitive headers were handled by the VU1 coprocessor.
+          the opaque primitive headers were handled by the VU1 coprocessor.
       - id: texture_blocks_count
         type: u4
         doc: Number of texture blocks.
@@ -158,24 +158,27 @@ types:
       - id: vertex_data_offset
         type: u4
         doc: Offset to vertex data.
-      - id: secondary_vertex_count
+      - id: transparent_vertex_count
         type: u4
-        doc: Number of secondary vertices.
-      - id: secondary_vertex_data_offset
+        doc: Number of transparent vertices.
+      - id: transparent_vertex_data_offset
         type: u4
-        doc: Offset to secondary vertex data.
+        doc: Offset to transparent vertex data.
       - id: triangle_index_offset
         type: u4
         doc: Offset to triangle index data.
-      - id: secondary_triangle_index_offset
+      - id: transparent_triangle_index_offset
         type: u4
-        doc: Offset to secondary triangle index data.
-      - id: unknown3
+        doc: Offset to transparent triangle index data.
+      - id: opaque_cluster_map_count
         type: u4
-      - id: unknown4
+        doc: Unknown original name.
+      - id: transparent_cluster_map_count
         type: u4
-      - id: unknown5
+        doc: Unknown original name.
+      - id: cluster_map_offset
         type: u4
+        doc: Unknown original name.
       - id: pad0
         size: 12
       - id: initial_matrices
@@ -221,18 +224,101 @@ types:
         type: texture_metadata
         if: _root.header.texture_count > 0
     instances:
+      junk_padding:
+        pos: junk_padding_offset + 64
+        size: cluster_node_offset - junk_padding_offset
       cluster_nodes:
-        pos: cluster_node_offset
-        size: cluster_node_count * 6
-        doc: Currently unknown purpose/interpretation
+        pos: cluster_node_offset + 64
+        type: s2_vector
+        if: cluster_node_count > 0
+        repeat: expr
+        repeat-expr: cluster_node_count
+        doc: Morph targets for facial animation.
+      cluster_node_normals:
+        pos: cluster_node_offset + cluster_node_count * 6
+          + 64 + cluster_node_padding_amount
+        type: s2_vector
+        repeat: expr
+        repeat-expr: cluster_node_count
+        if: cluster_nodes_have_normals
+      cluster_nodes_have_normals:
+        value: cluster_node_offset + cluster_node_count * 6
+          + 64 + cluster_node_padding_amount != cluster_offset + 64
+        doc: This is a helper, not part of the original mdl structure.
+      cluster_node_normals_offset:
+        value: cluster_node_offset + cluster_node_count * 6
+          + 64 + cluster_node_padding_amount
+        doc: This is a helper, not part of the original mdl structure.
+      cluster_node_padding_amount:
+        value: cluster_node_count % 8 != 0 ?
+          (16 - cluster_node_count * 6 % 16):0
+        doc: This is a helper, not part of the original mdl structure.
       clusters:
-        pos: cluster_offset
-        size: 0
-        doc: Unknown purpose and size computation.
+        pos: cluster_offset + 64
+        type: cluster
+        repeat: expr
+        repeat-expr: cluster_count
+        if: cluster_count > 0
+      cluster_maps:
+        pos: cluster_map_offset + 64
+        type: cluster_maps
+        doc: Unknown original name.
       geometry:
         pos: primitive_headers_offset + 64
         type: geometry
         doc: The start of the geometry data.
+
+  cluster_maps:
+    seq:
+      - id: opaque
+        type: cluster_mapping
+        repeat: expr
+        repeat-expr: _root.model_data.opaque_cluster_map_count
+      - id: transparent
+        type: cluster_mapping
+        repeat: expr
+        repeat-expr: _root.model_data.transparent_cluster_map_count
+  cluster_mapping:
+    seq:
+      - id: source_start_index
+        type: u2
+      - id: target_start_index
+        type: u2
+      - id: count
+        type: u2
+    doc: Unknown original IDs for all properties.
+  cluster:
+    seq:
+      - id: node_count
+        type: u4
+        -orig-id: n_nodes
+      - id: offset
+        type: u4
+        -orig-id: element_offset
+    instances:
+      data:
+        pos: offset + 64
+        type: cluster_data_list
+  cluster_data_list:
+    seq:
+      - id: vertices
+        type: cluster_data
+        repeat: expr
+        repeat-expr: _parent.node_count
+      - id: alignment
+        size: 16 - (_io.pos % 16)
+        if: _io.pos % 16 != 0
+      - id: normals
+        type: cluster_data
+        if: _root.model_data.cluster_nodes_have_normals
+        repeat: expr
+        repeat-expr: _parent.node_count
+  cluster_data:
+    seq:
+      - id: vector
+        type: s2_vector
+      - id: vertex_index
+        type: s2
 
   geometry:
     seq:
@@ -244,8 +330,8 @@ types:
         type: index_list
         # This field has silly formatting to get the parser to work right?
         size: (_root.model_data.vertex_data_offset >
-          _root.model_data.secondary_primitive_headers_offset ?
-          _root.model_data.secondary_primitive_headers_offset
+          _root.model_data.transparent_primitive_headers_offset ?
+          _root.model_data.transparent_primitive_headers_offset
           :_root.model_data.vertex_data_offset) -
           _root.model_data.triangle_index_offset
         doc: List of vertex indices, which represent triangle strips.
@@ -255,25 +341,25 @@ types:
         pos: _root.model_data.vertex_data_offset + 64
         repeat: expr
         repeat-expr: _root.model_data.vertex_count
-      secondary_primitive_headers:
-        type: secondary_primitive_header_wrapper
-        pos: _root.model_data.secondary_primitive_headers_offset + 64
+      transparent_primitive_headers:
+        type: transparent_primitive_header_wrapper
+        pos: _root.model_data.transparent_primitive_headers_offset + 64
         repeat: expr
-        repeat-expr: _root.model_data.secondary_primitive_headers_count
-        if: _root.model_data.secondary_primitive_headers_count > 0
-      secondary_triangle_indices:
+        repeat-expr: _root.model_data.transparent_primitive_headers_count
+        if: _root.model_data.transparent_primitive_headers_count > 0
+      transparent_triangle_indices:
         type: index_list
-        pos: _root.model_data.secondary_triangle_index_offset + 64
-        size: _root.model_data.secondary_vertex_data_offset -
-          _root.model_data.secondary_triangle_index_offset
+        pos: _root.model_data.transparent_triangle_index_offset + 64
+        size: _root.model_data.transparent_vertex_data_offset -
+          _root.model_data.transparent_triangle_index_offset
         doc: List of vertex indices, which represent triangle strips.
-        if: _root.model_data.secondary_primitive_headers_count > 0
-      secondary_vertex_list:
-        type: secondary_vertex_data
-        pos: _root.model_data.secondary_vertex_data_offset + 64
+        if: _root.model_data.transparent_primitive_headers_count > 0
+      transparent_vertex_list:
+        type: transparent_vertex_data
+        pos: _root.model_data.transparent_vertex_data_offset + 64
         repeat: expr
-        repeat-expr: _root.model_data.secondary_vertex_count
-        if: _root.model_data.secondary_primitive_headers_count > 0
+        repeat-expr: _root.model_data.transparent_vertex_count
+        if: _root.model_data.transparent_primitive_headers_count > 0
 
   vertex_data:
     seq:
@@ -388,38 +474,69 @@ types:
       - id: texture_index_offset
         type: u4
         doc: Appears to be the texture index offset for this primitive?
-      - id: marker_offset
+      - id: sampler_states_offset
         type: u4
-        doc: Offset to a marker sequence, which ends the header.
+        doc: |
+          From FF24, this is an offset to ADDRESSU, ADDRESSV, MAGFILTER and 
+          MINFILTER sampler states.
+      - id: material_type
+        type: u1
+        enum: material_type
+        doc: See FrozenFish24's SH2MapTools/Sh2ModelMaterialEditor/Model.py#L75
+      - id: unknown_byte0
+        type: u1
+        doc: Possibly material-related, see `material_type`.
+      - id: pose_index
+        type: u1
+        doc: |
+          If zero, this primitive is always visible. Otherwise, it may be
+          hidden and swapped out at various times, e.g. for James's hands.
+      - id: unknown_byte1
+        type: u1
+      - id: backface_culling
+        type: u4
+      - id: unknown_float0
+        type: f4
+        doc: From FF24, reported to affect diffuse color somehow.
+      - id: unknown_float1
+        type: f4
+        doc: From FF24, reported to affect ambient color somehow.
+      - id: specular_scale
+        type: f4
+        doc: From FF24, larger value = smaller specular.
       - id: unknown_section0
-        size: 28
+        size: 8
         doc: Unknown purpose.
       - id: pad1
         size: 4
-      - id: unknown_floats0
+      - id: diffuse_color
         type: f4
         repeat: expr
         repeat-expr: 3
-        doc: Curious unknown floats. Often seem to be around 2 / 3.
+        doc: From FF24, this is the diffuse color.
       - id: pad2
         size: 4
-      - id: unknown_floats1
+      - id: ambient_color
         type: f4
         repeat: expr
         repeat-expr: 3
-        doc: Curious unknown floats. Often seem to be around 1 / 3.
+        doc: From FF24, this is the ambient color.
       - id: pad3
         size: 4
-      - id: unknown_section1
-        size: 16
-        doc: Purpose unknown.
+      - id: specular_color
+        type: f4
+        repeat: expr
+        repeat-expr: 3
+        doc: From FF24, this is the specular color (range 0-128).
+      - id: pad4
+        size: 4
       - id: primitive_start_index
         type: u4
         doc: Offset into the triangle index array where the primitive begins.
       - id: primitive_length
         type: u4
         doc: The length of the primitive in the triangle index array.
-      - id: pad4
+      - id: pad5
         size: 4
       - id: bone_indices
         type: u2
@@ -442,21 +559,26 @@ types:
         size: texture_index_count * 2
         type: index_list
         doc: A list of texture indices? TODO
-      marker:
-        pos: marker_offset - 4
-        contents: [0x03, 0x03, 0x02, 0x02]
-        doc: |
-          Seems to always be 0x03 0x03 0x02 0x02, but see also the marker field
-          of the secondary_primitive_header type.
+      sampler_states:
+        pos: sampler_states_offset - 4
+        type: u1
+        repeat: expr
+        repeat-expr: 4
+    enums:
+      material_type:
+        1: unlit
+        2: matte
+        3: matte_plus
+        4: glossy
 
-  secondary_primitive_header_wrapper:
+  transparent_primitive_header_wrapper:
     seq:
-      - id: secondary_primitive_header_size
+      - id: transparent_primitive_header_size
         type: u4
       - id: body
-        size: secondary_primitive_header_size - 4
-        type: secondary_primitive_header
-  secondary_primitive_header:
+        size: transparent_primitive_header_size - 4
+        type: transparent_primitive_header
+  transparent_primitive_header:
     seq:
       - id: pad0
         size: 4
@@ -503,7 +625,7 @@ types:
         doc: |
           And that's a--an almost... magic... number...? Turns out this can be
           [0x03, 0x03, 0x02, 0x02], or [0x03, 0x03, 0x01, 0x01].
-  secondary_vertex_data:
+  transparent_vertex_data:
     seq:
       - id: x
         type: f4
@@ -670,6 +792,14 @@ types:
       - id: array
         type: u2
         repeat: eos
+  s2_vector:
+    seq:
+      - id: x
+        type: s2
+      - id: y
+        type: s2
+      - id: z
+        type: s2
   transformation_matrix:
     doc: |
       Represents a 4x4 column-major transformation matrix.

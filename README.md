@@ -62,12 +62,12 @@ In order to emit TypeScript .d.ts files from the ksy source, this repository rel
 
 1. Install the [Kaitai Struct compiler](https://kaitai.io/#download). It should be globally available as the `kaitai-struct-compiler` command.
 
-To make sure this step worked, try `npm run ksy-all` in the root directory of this folder.
+To make sure this step worked, try `npm run kaitai all` in the root directory of this folder.
 
 2. Clone [this fork](https://github.com/laura-a-n-n/kaitai_struct_compiler) of aquach's TypeScript compiler for Kaitai Struct, as a sub-directory of this repository. It is the same feature, I just merged it with latest.
 
 3. Follow [these instructions](https://doc.kaitai.io/serialization.html#_building_the_compiler_from_source) for building Kaitai Struct from source in the newly cloned folder, except checkout `feature/typescript`, not the `serialization` branch.
 
-To test that everything worked, try `npm run ksy-museum` in the root folder of this repository.
+To test that everything worked, try `npm run kaitai js` in the root folder of this repository.
 
-Now whenever changes are made to the ksy file, run `npm run ksy-museum` before committing.
+Now whenever changes are made to the ksy file, run `npm run kaitai js && npm run kaitai ts` before committing.

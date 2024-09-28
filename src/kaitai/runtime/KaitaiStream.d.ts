@@ -15,6 +15,9 @@ declare class KaitaiStream {
     zlib?: string;
   };
 
+  writeBackChildStreams(): void;
+  toByteArray(): Uint8Array;
+
   _trimAlloc(): void;
   alignToByte(): void;
   isEof(): boolean;

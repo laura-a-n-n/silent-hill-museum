@@ -15,7 +15,7 @@ export default class Stripifier {
   }
 
   private static setInstance(instance: StripifierInstance) {
-    this.stripifier = instance;
+    Stripifier.stripifier = instance;
   }
 }
 
