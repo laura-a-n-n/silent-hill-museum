@@ -1159,6 +1159,7 @@ export default class SerializableModel {
       textureMetadata.mainTextureIds.push(textureId);
       newSpriteHeader.spriteId = 0;
       pair.spriteId = spriteId;
+      console.log(textureContainer);
     } else {
       // mdl already had a texture container here, so just modify it
       const textureMetadata = model.modelData.textureMetadata;
@@ -1196,7 +1197,11 @@ export default class SerializableModel {
     // is more consistent?
     const diff = 64 + dataSize - oldTextureContainerSize;
     this.totalSizeDiff += diff;
-    textureContainers[textureContainerIndex] = textureContainer;
+    textureContainers[
+      textureContainerIndex < 0
+        ? textureContainers.length
+        : textureContainerIndex
+    ] = textureContainer;
 
     return material;
   }
