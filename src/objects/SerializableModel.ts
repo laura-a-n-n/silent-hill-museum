@@ -1283,7 +1283,7 @@ export default class SerializableModel {
     // Compute scale factor
     const scaleFactor = sourceMaxDimension / targetMaxDimension;
 
-    if (scaleFactor > 0.1 || scaleFactor < 2) {
+    if (scaleFactor > 0.1 && scaleFactor < 2) {
       logger.debug(
         "Canceling autoscale because the scale factor is relatively small"
       );
@@ -1411,7 +1411,7 @@ export default class SerializableModel {
     const targetAverageVertex = computeAverageVertex(targetVertices);
     const scaleFactor =
       Math.hypot(...sourceAverageVertex) / Math.hypot(...targetAverageVertex);
-    if (scaleFactor > 0.1 || scaleFactor < 2) {
+    if (scaleFactor > 0.1 && scaleFactor < 2) {
       logger.debug(
         "Canceling autoscale because the scale factor is relatively small"
       );
