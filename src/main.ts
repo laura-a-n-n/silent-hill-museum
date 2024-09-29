@@ -630,9 +630,16 @@ const render = () => {
       logger.debug("Added transparent geometry to mesh!", transparentGeometry);
       group.add(transparentMesh);
     }
-    logger.debug("Adding group to scene", group);
 
+    group.userData = {
+      silentHillModel: {
+        name: clientState.file,
+        characterId: model.header.characterId,
+      },
+    };
+    logger.debug("Adding group to scene", group);
     scene.add(group);
+
     clientState.setCurrentObject(group);
     clientState.getTextureViewer()?.attach(group);
     if (

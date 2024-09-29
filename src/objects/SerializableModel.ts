@@ -72,6 +72,7 @@ export type ModelParams = {
   bonemapCollapseTarget: number;
 
   removeMorphTargets: boolean;
+  mapToSelf: boolean;
 };
 
 export const SilentHillModelTypes = {
@@ -147,6 +148,7 @@ export default class SerializableModel {
     removeMorphTargets: true,
     backfaceCulling: false,
     renderTransparentPrimitives: false,
+    mapToSelf: true,
   };
 
   private opaquePrimitives: SilentHillModel.PrimitiveHeaderWrapper[] = [];
@@ -319,8 +321,21 @@ export default class SerializableModel {
     const meshes = this.meshes;
     const stripifier = Stripifier.getInstance();
 
+    if (!meshes.length) {
+      throw new Error("No meshes to serialize.");
+    }
+    if (
+      parseInt(meshes[0].userData.silentHillModel?.characterId) ===
+      model.header.characterId
+    ) {
+      this.params.mapToSelf = true;
+      logger.debug("Detected an in-house museum model!");
+      logger.debug(`Editing ${meshes[0].userData.silentHillModel.name}`);
+    }
+
     this.applyEdits();
 
+    const firstPrimitive = model.modelData.geometry.primitiveHeaders[0];
     let currentPrimitiveTriangleIndex = 0;
     this.newSectionSizes.bonePairs = 2 * model.modelData.bonePairsCount;
     this.newSectionSizes.defaultPcmsMatrices =
@@ -336,6 +351,7 @@ export default class SerializableModel {
       const mesh = meshes[index];
       const meshGeometry = mesh.geometry;
       const meshAttributes = meshGeometry.attributes;
+      mesh.updateMatrixWorld();
       const meshVertices = meshAttributes.position.array;
       if (!meshAttributes.normal) {
         meshGeometry.computeVertexNormals();
@@ -354,14 +370,23 @@ export default class SerializableModel {
       const triangleIndexCount = triangles.length;
 
       // create primitive header
-      // todo: this isn't typesafe, consider noUncheckedIndexAccess
-      const firstPrimitive = model.modelData.geometry.primitiveHeaders[0];
+      const templatePrimitive =
+        (this.params.mapToSelf &&
+          model.modelData.geometry.primitiveHeaders[index]) ||
+        firstPrimitive;
+      logger.debug(`Primitive ${index}`);
+      if (templatePrimitive.body.poseIndex) {
+        logger.debug(
+          `Primitive ${index} has poseIndex ${templatePrimitive.body.poseIndex}`
+        );
+      }
       const primitiveWrapper = new SilentHillModel.PrimitiveHeaderWrapper(
-        new KaitaiStream(new ArrayBuffer(firstPrimitive._io.size)),
+        new KaitaiStream(new ArrayBuffer(templatePrimitive._io.size)),
         model.modelData.geometry,
         model
       );
-      primitiveWrapper.primitiveHeaderSize = firstPrimitive.primitiveHeaderSize;
+      primitiveWrapper.primitiveHeaderSize =
+        templatePrimitive.primitiveHeaderSize;
       const primitive = new SilentHillModel.PrimitiveHeader(
         new KaitaiStream(
           new ArrayBuffer(primitiveWrapper.primitiveHeaderSize - 4)
@@ -369,7 +394,7 @@ export default class SerializableModel {
         primitiveWrapper,
         model
       );
-      assignPublicProperties(firstPrimitive.body, primitive);
+      assignPublicProperties(templatePrimitive.body, primitive);
       primitiveWrapper.body = primitive;
       primitive.primitiveStartIndex = currentPrimitiveTriangleIndex;
       primitive.primitiveLength = triangleIndexCount;
@@ -680,6 +705,7 @@ export default class SerializableModel {
       assignPublicProperties(referencePrimitive, primitive, {
         primitiveLength: true,
         primitiveStartIndex: true,
+        poseIndex: true,
       });
       primitive.bonePairIndices.array =
         referencePrimitive.bonePairIndices.array;
@@ -880,17 +906,26 @@ export default class SerializableModel {
           vertexData.boneWeight1 +
           vertexData.boneWeight2 +
           vertexData.boneWeight3;
-        [
-          vertexData.boneWeight0,
-          vertexData.boneWeight1,
-          vertexData.boneWeight2,
-          vertexData.boneWeight3,
-        ] = [
-          vertexData.boneWeight0 / sum,
-          vertexData.boneWeight1 / sum,
-          vertexData.boneWeight2 / sum,
-          vertexData.boneWeight3 / sum,
-        ];
+        if (sum) {
+          [
+            vertexData.boneWeight0,
+            vertexData.boneWeight1,
+            vertexData.boneWeight2,
+            vertexData.boneWeight3,
+          ] = [
+            vertexData.boneWeight0 / sum,
+            vertexData.boneWeight1 / sum,
+            vertexData.boneWeight2 / sum,
+            vertexData.boneWeight3 / sum,
+          ];
+        } else {
+          [
+            vertexData.boneWeight0,
+            vertexData.boneWeight1,
+            vertexData.boneWeight2,
+            vertexData.boneWeight3,
+          ] = [1, 0, 0, 0];
+        }
         if (
           Math.abs(
             [
@@ -934,7 +969,7 @@ export default class SerializableModel {
         vertexData.boneWeight1 = 0;
         vertexData.boneWeight2 = 0;
         vertexData.boneWeight3 = 0;
-        vertexData.boneIndex0 = 0;
+        vertexData.boneIndex0 = bonemapCollapseTarget;
         vertexData.boneIndex1 = 0;
         vertexData.boneIndex2 = 0;
         vertexData.boneIndex3 = 0;

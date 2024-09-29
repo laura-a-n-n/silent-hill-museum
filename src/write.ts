@@ -92,10 +92,6 @@ export const onReceiveSharedData = (
     editorState.triggerUpdate();
   }
   if (sharedData.materialIndices && sharedData.textureIndices) {
-    logger.debug(
-      "Updating material/texture indices...",
-      JSON.stringify(sharedData, null, 4)
-    );
     sharedSerializationData.materialIndices = sharedData.materialIndices;
     sharedSerializationData.textureIndices = sharedData.textureIndices;
   }
@@ -179,8 +175,15 @@ export const serializeObjects = async (
   sendToShared?: SendToShared
 ) => {
   const meshes: Mesh[] = [];
+  let userData: any;
   const searchForMeshes = (object: Object3D) => {
+    object.updateMatrix();
+    object.updateMatrixWorld(true);
+    if (object.userData.silentHillModel) {
+      userData = object.userData;
+    }
     if (object instanceof Mesh) {
+      object.userData = userData ?? {};
       meshes.push(object);
     }
     for (const child of object.children) {
@@ -188,6 +191,9 @@ export const serializeObjects = async (
     }
   };
   searchForMeshes(rootObject);
+  meshes.forEach((mesh) =>
+    mesh.geometry.attributes.position.applyMatrix4(mesh.matrixWorld)
+  );
   return writeMeshes(
     meshes,
     baseFile,
