@@ -345,6 +345,7 @@ export default class SerializableModel {
     if (typeof bonemap !== "number") {
       this.sendToShared({ bonemap });
     }
+    this.generateBonePairMap();
 
     for (let index = 0; index < meshes.length; index++) {
       // load up all attributes
@@ -459,6 +460,7 @@ export default class SerializableModel {
     this.finalizeTextures();
 
     if (!this.params.renderTransparentPrimitives) {
+      logger.debug("Not rendering transparent primitives");
       model.modelData.transparentPrimitiveHeadersCount = 0;
     }
 
@@ -602,6 +604,17 @@ export default class SerializableModel {
         }
         return this.params.bonemap;
       }
+    }
+  }
+
+  private generateBonePairMap() {
+    const { modelData } = this.model;
+    const bonePairs = modelData.bonePairs;
+    const globalAddedBonePairs = this.globalAddedBonePairs;
+    for (let i = 0; i < modelData.bonePairsCount; i++) {
+      const { parent, child } = bonePairs[i];
+      const key = (parent << 8) | child;
+      globalAddedBonePairs.set(key, i);
     }
   }
 
