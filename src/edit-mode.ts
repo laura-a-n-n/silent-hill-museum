@@ -95,6 +95,7 @@ export default class EditMode {
         }
         applyUpdate();
       });
+    editorGui.add(editorState.editorParams, "Collapse Target", 0, 255, 1);
     editorGui
       .add(editorState.editorParams, "Flip Y")
       .onFinishChange(() => this.updateAndReset());

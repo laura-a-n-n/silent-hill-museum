@@ -15,6 +15,7 @@ export default class EditorState {
     "Auto-Scale": Autoscale.BoundingBox,
     "Flip Y": false,
     "Bonemap Method": BonemapMethod["Collapse"],
+    "Collapse Target": 0,
     "Model Scale": 1,
     "Model Controls": false,
     "Show Original": false,
@@ -42,6 +43,7 @@ export default class EditorState {
       flipY: this.editorParams["Flip Y"],
       bonemapType: this.editorParams["Bonemap Method"],
       bonemap: sharedSerializationData.bonemap,
+      bonemapCollapseTarget: this.editorParams["Collapse Target"],
     });
   }
   public updateSerializationParams(
