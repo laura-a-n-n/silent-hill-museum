@@ -8,6 +8,7 @@ const TOGGLE_VISIBLE = "block";
 const TOGGLE_HIDDEN = "none";
 const INITIAL_DROPDOWN_TEXT = ": {...}";
 const AUTOEXPAND_FILTER = ["model", "header"];
+const ARRAY_LENGTH_CUTOFF = 6000;
 
 const renderStructProperty = (
   parent: HTMLElement,
@@ -68,14 +69,19 @@ function renderJson(
   autoexpand = false
 ): HTMLDivElement {
   const container = document.createElement("div");
+  const isLargeArray =
+    (Array.isArray(value) || value instanceof Uint8Array) &&
+    value.length > ARRAY_LENGTH_CUTOFF;
 
-  if (typeof value === "object" && value !== null) {
+  if (typeof value === "object" && value !== null && !isLargeArray) {
     renderStructProperty(container, key, value, autoexpand);
   } else {
     const literal = document.createElement("div");
 
     let processedValue = value;
-    if (typeof value === "number" && Number.isInteger(value)) {
+    if (isLargeArray) {
+      processedValue = `[large byte array of size ${value.length}]`;
+    } else if (typeof value === "number" && Number.isInteger(value)) {
       processedValue = `<strong>0x${value.toString(16)}</strong> (${value})`;
     }
 
