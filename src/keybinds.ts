@@ -80,6 +80,9 @@ keybindManager.addKeybind(
   () => closeAllElements(),
   "Close all modals"
 );
+keybindManager.addKeybind("i", () =>
+  clientState.uiParams["View Structure 🔎"]()
+);
 
 const keybindsModal = document.getElementById("keybinds-modal");
 if (keybindsModal) {

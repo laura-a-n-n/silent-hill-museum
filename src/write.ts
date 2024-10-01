@@ -252,6 +252,7 @@ export const readCustomStruct = (buffer: ArrayBuffer) => {
 
 const onReceiveModelByteArray = (byteArray: Uint8Array) => {
   const model = new SilentHillModel(new KaitaiStream(byteArray.buffer));
+  model._read();
   clientState.setCustomModel({ contents: byteArray, model });
 };
 

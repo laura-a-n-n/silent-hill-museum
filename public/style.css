@@ -119,6 +119,14 @@ blockquote {
   font-style: italic;
 }
 
+.about-modal-header {
+  text-align: center;
+}
+
+.about-modal-header img {
+  width: 80%;
+}
+
 #blur-background {
   top: 0;
   left: 0;
@@ -479,6 +487,43 @@ footer {
   height: 3rem;
   padding-top: 0.5rem;
   bottom: 0;
+}
+
+.struct-visualizer .json-key {
+  font-style: italic;
+}
+div.struct-visualizer button.json-dropdown {
+  all: unset;
+  cursor: pointer;
+  font-weight: bold;
+  position: relative;
+}
+div.struct-visualizer button.json-dropdown.interactive:focus::before {
+  content: "★";
+  width: 1rem;
+  height: 1rem;
+  position: absolute;
+  left: -1.25rem;
+  top: 0;
+}
+.struct-visualizer p {
+  margin: 0;
+}
+.struct-visualizer p.title {
+  text-align: center;
+  font-size: 1.25rem;
+}
+.struct-visualizer .json-literal {
+  color: #d676ae;
+}
+.struct-visualizer .json-content {
+  margin-left: 1.2rem;
+  display: none;
+}
+div.struct-visualizer {
+  overflow-x: auto;
+  overflow-y: auto;
+  text-transform: none;
 }
 
 @media all and (max-width: 700px) {

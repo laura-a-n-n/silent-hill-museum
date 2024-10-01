@@ -163,6 +163,7 @@ const updateLink = (sharable?: boolean) => {
 dataGuiFolder
   .add(clientState.uiParams, "Sharable Link")
   .onFinishChange(updateLink);
+dataGuiFolder.add(clientState.uiParams, "View Structure 🔎");
 dataGuiFolder.add(clientState.uiParams, "Next File");
 dataGuiFolder.add(clientState.uiParams, "Previous File");
 dataGuiFolder.add(clientState.uiParams, "Save Image");
@@ -848,7 +849,10 @@ const render = () => {
     }
     return;
   }
-  loadModel(clientState.fullPath).then(modelCallback);
+  loadModel(clientState.fullPath).then((model) => {
+    clientState.setCurrentViewerModel(model);
+    modelCallback(model);
+  });
 };
 render();
 clientState.setOnUpdate(render);

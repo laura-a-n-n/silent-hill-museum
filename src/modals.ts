@@ -214,16 +214,19 @@ export const showNotSupportedModal = (glVersion = 0, queue = true) => {
   }
 };
 
-export const showQuickModal = (html: string, className?: string) => {
+export const showQuickModal = (html?: string, className?: string) => {
   const element = uiDescriptions.quickModal.element;
   if (!element) {
     throw Error("Could not find quick modal element!");
   }
-  element.innerHTML = html;
+  if (html !== undefined) {
+    element.innerHTML = html;
+  }
   element.className = "modal";
   element.role = "button";
   if (className) {
     element.classList.add(className);
   }
   pushToQueue("quickModal", true);
+  return element;
 };

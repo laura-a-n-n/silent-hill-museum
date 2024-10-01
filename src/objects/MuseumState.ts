@@ -7,13 +7,19 @@ import {
   MuseumFile,
   travelAlongLevel,
 } from "../files";
-import { toggleWithBackground, onConfirm } from "../modals";
+import {
+  toggleWithBackground,
+  onConfirm,
+  showQuickModal,
+  isAnyElementOpen,
+} from "../modals";
 import { MaterialView } from "../model";
 import SilentHillModel from "../kaitai/Mdl";
 import { disposeResources, exportModel, saveArrayBuffer } from "../utils";
 import { Object3D, Vector3 } from "three";
 import TextureViewer, { TextureViewerStates } from "./TextureViewer";
 import { editorState } from "./EditorState";
+import { renderStructToContainer } from "../visualize-struct";
 
 export const START_INDEX = constructIndex("chr", "favorites", "org.mdl");
 const START_PATH_ARRAY = destructureIndex(START_INDEX);
@@ -58,6 +64,7 @@ export default class MuseumState {
   private onUpdate?: () => void;
   private onModeUpdate?: (previousMode: "viewing" | "edit") => void;
 
+  private currentViewerModel?: SilentHillModel;
   private customModel?: {
     contents: Uint8Array;
     model: SilentHillModel;
@@ -175,6 +182,10 @@ export default class MuseumState {
     this.saveRequested = true;
   }
 
+  public setCurrentViewerModel(model: SilentHillModel | undefined) {
+    this.currentViewerModel = model;
+  }
+
   public setCustomModel(model: typeof this.customModel) {
     this.customModel = model;
     if (this.saveRequested && model?.contents) {
@@ -283,6 +294,15 @@ export default class MuseumState {
     "Next File": () => this.nextFile(),
     "Previous File": () => this.previousFile(),
     "Save Image": () => (this.uiParams["Render This Frame"] = true),
+    "View Structure 🔎": () => {
+      if (isAnyElementOpen()) {
+        return;
+      }
+      renderStructToContainer(
+        showQuickModal(undefined, "struct-visualizer"),
+        this.getCustomModel()?.model ?? this.currentViewerModel ?? {}
+      );
+    },
     "Export to GLTF": () => {
       const object = this.currentObject;
       if (object === undefined) {
