@@ -38,10 +38,10 @@ const renderStructProperty = (
       content.setAttribute("is-rendered", "true");
       if (renderableProperties.length === 0) {
         content.innerHTML = "<em>(empty)</em>";
-        return;
-      }
-      for (const subKey of renderableProperties) {
-        content.appendChild(renderJson(subKey, value[subKey]));
+      } else {
+        for (const subKey of renderableProperties) {
+          content.appendChild(renderJson(subKey, value[subKey]));
+        }
       }
       if (content && button) {
         content.style.display = TOGGLE_VISIBLE;
@@ -80,9 +80,11 @@ function renderJson(
 
     let processedValue = value;
     if (isLargeArray) {
-      processedValue = `[large byte array of size ${value.length}]`;
+      processedValue = `[large array of size ${value.length}]`;
     } else if (typeof value === "number" && Number.isInteger(value)) {
-      processedValue = `<strong>0x${value.toString(16)}</strong> (${value})`;
+      processedValue = `<strong>${value < 0 ? "-" : ""}0x${Math.abs(
+        value
+      ).toString(16)}</strong> (${value})`;
     }
 
     let innerHtml = `<span class="${KEY_CLASS}">${key}</span>: `;

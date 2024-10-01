@@ -494,9 +494,11 @@ footer {
 }
 div.struct-visualizer button.json-dropdown {
   all: unset;
-  cursor: pointer;
   font-weight: bold;
   position: relative;
+}
+div.struct-visualizer button.json-dropdown.interactive {
+  cursor: pointer;
 }
 div.struct-visualizer button.json-dropdown.interactive:focus::before {
   content: "★";
