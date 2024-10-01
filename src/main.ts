@@ -1,20 +1,27 @@
 import {
   bindSkeletonToGeometry,
-  bindSkeletonToSecondaryGeometry,
+  bindSkeletonToTransparentGeometry,
   createGeometry,
   createMaterial,
   createSkeleton,
   MaterialType,
   MaterialView,
 } from "./model";
-import { loadModel } from "./load";
+import { loadModel, loadModelFromBytes } from "./load";
 import {
   cameraFix,
   clientState,
   defaultParams,
   preferredParams,
 } from "./objects/MuseumState";
-import { exportCanvas, fitCameraToSelection, RenderSideMap } from "./utils";
+import {
+  createRainbowLights,
+  disposeResources,
+  exportCanvas,
+  fitCameraToSelection,
+  RenderSideMap,
+  WrapMap,
+} from "./utils";
 import {
   WebGLRenderer,
   Object3D,
@@ -34,6 +41,11 @@ import {
   Clock,
   WebGL1Renderer,
   Material,
+  SphereGeometry,
+  MeshBasicMaterial,
+  Bone,
+  RepeatWrapping,
+  ClampToEdgeWrapping,
 } from "three";
 import {
   OrbitControls,
@@ -48,15 +60,28 @@ import {
   toggleWithBackground,
 } from "./modals";
 import { chrFolders, MuseumFile } from "./files";
-import "./keybinds";
 import GUI from "lil-gui";
+import { acceptModelDrop, applyUpdate } from "./write";
+import SilentHillModel from "./kaitai/Mdl";
+import RaycastHelper from "./objects/RaycastHelper";
+import logger from "./objects/Logger";
+import "./keybinds";
+import EditMode, { consoleGui } from "./edit-mode";
+import { TextureViewerStates } from "./objects/TextureViewer";
+import { editorState } from "./objects/EditorState";
+import Gizmo from "./objects/Gizmo";
 
 const appContainer = document.getElementById("app");
 if (!(appContainer instanceof HTMLDivElement)) {
   throw Error("The app container was not found!");
 }
+const uiContainer = document.getElementById("ui-container");
+if (!(uiContainer instanceof HTMLDivElement)) {
+  throw Error("The UI container was not found!");
+}
 
 initializeModals();
+acceptModelDrop(appContainer);
 
 const params = new URLSearchParams(window.location.search);
 const bypassAboutModal = params.get("bypass-modal");
@@ -77,31 +102,32 @@ if (!WebGL.isWebGLAvailable()) {
 }
 clientState.setGlVersion(glVersion);
 
-const gui = new GUI({ width: 250 });
+const gui = new GUI({ width: 250, container: uiContainer });
+gui.domElement.id = "main-gui";
 
 const dataGuiFolder = gui.addFolder("Data");
 const scenarioInput = dataGuiFolder
-  .add(clientState.params, "Scenario", ["Main Scenario", "Born From A Wish"])
+  .add(clientState.uiParams, "Scenario", ["Main Scenario", "Born From A Wish"])
   .onFinishChange((scenarioName: "Main Scenario" | "Born From A Wish") => {
     clientState.rootFolder = scenarioName === "Main Scenario" ? "chr" : "chr2";
   });
 const folderInput = dataGuiFolder
-  .add(clientState.params, "Folder", chrFolders)
+  .add(clientState.uiParams, "Folder", chrFolders)
   .onFinishChange((folderName: (typeof chrFolders)[number]) => {
     clientState.folder = folderName;
   });
 const possibleFilenames = clientState.getPossibleFilenames();
 const fileInput = dataGuiFolder.add(
-  clientState.params,
+  clientState.uiParams,
   "Filename",
   possibleFilenames
 );
 dataGuiFolder
-  .add(clientState.params, "Lock To Folder")
+  .add(clientState.uiParams, "Lock To Folder")
   .onFinishChange(() => {
     showContentWarningModal(
       () => {
-        clientState.params["Lock To Folder"] = false;
+        clientState.uiParams["Lock To Folder"] = false;
         render();
       },
       () => {
@@ -135,21 +161,43 @@ const updateLink = (sharable?: boolean) => {
   window.history.pushState({ path: newUrl }, "", newUrl);
 };
 dataGuiFolder
-  .add(clientState.params, "Sharable Link")
+  .add(clientState.uiParams, "Sharable Link")
   .onFinishChange(updateLink);
-dataGuiFolder.add(clientState.params, "Next File");
-dataGuiFolder.add(clientState.params, "Previous File");
-dataGuiFolder.add(clientState.params, "Save Image");
-dataGuiFolder.add(clientState.params, "Export to GLTF");
+dataGuiFolder.add(clientState.uiParams, "View Structure 🔎");
+dataGuiFolder.add(clientState.uiParams, "Next File");
+dataGuiFolder.add(clientState.uiParams, "Previous File");
+dataGuiFolder.add(clientState.uiParams, "Save Image");
+dataGuiFolder.add(clientState.uiParams, "Export to GLTF");
 fileInput.onFinishChange((file: (typeof possibleFilenames)[number]) => {
   clientState.file = file;
 });
 dataGuiFolder.open();
 
 const controlsGuiFolder = gui.addFolder("Controls");
-controlsGuiFolder.add(clientState.params, "Auto-Rotate");
+const editModeButton = controlsGuiFolder
+  .add(clientState.uiParams, "Edit Mode ✨")
+  .listen()
+  .onFinishChange((value: boolean) => {
+    clientState.setMode(value ? "edit" : "viewing");
+    if (value) {
+      textureViewerButton.hide();
+    } else {
+      textureViewerButton.show();
+    }
+  });
+const textureViewerButton = controlsGuiFolder
+  .add(clientState.uiParams, "Texture Viewer 👀")
+  .listen()
+  .onFinishChange((value: boolean) => {
+    if (value) {
+      clientState.getTextureViewer()?.setState(TextureViewerStates.Locked);
+    } else {
+      clientState.getTextureViewer()?.setState(TextureViewerStates.Inactive);
+    }
+  });
+controlsGuiFolder.add(clientState.uiParams, "Auto-Rotate");
 controlsGuiFolder
-  .add(clientState.params, "Bone Controls")
+  .add(clientState.uiParams, "Bone Controls")
   .onFinishChange((value: boolean) => {
     if (value) {
       controlsModeInput.show();
@@ -158,73 +206,109 @@ controlsGuiFolder
     }
     controlsModeInput.hide();
     boneSelector.hide();
+    raycastTargets.forEach((target) => {
+      target.removeFromParent();
+      disposeResources(target);
+    });
+    raycastTargetsGenerated = false;
+    raycastTargets.length = 0;
   });
 const boneSelector = controlsGuiFolder
-  .add(clientState.params, "Selected Bone", 0, 1, 1)
-  .onFinishChange(() => transformControls.removeFromParent())
+  .add(clientState.uiParams, "Selected Bone", 0, 1, 1)
+  .onChange(() => boneTransformGizmo.getTransformControls().removeFromParent())
   .hide()
   .listen();
 const controlsModeInput = controlsGuiFolder
-  .add(clientState.params, "Controls Mode", ["translate", "rotate"])
+  .add(clientState.uiParams, "Controls Mode", ["translate", "rotate"])
   .listen()
   .hide();
 
 const geometryFolder = gui.addFolder("Geometry");
-geometryFolder.add(clientState.params, "Render Primary");
-geometryFolder.add(clientState.params, "Render Extra");
+geometryFolder
+  .add(clientState.uiParams, "Render Opaque")
+  .onFinishChange(() => render());
+geometryFolder
+  .add(clientState.uiParams, "Render Transparent")
+  .onFinishChange(() => render());
 if (clientState.getGlVersion() === 2) {
-  geometryFolder.add(clientState.params, "Skeleton Mode");
   geometryFolder
-    .add(clientState.params, "Visualize Skeleton")
+    .add(clientState.uiParams, "Skeleton Mode")
+    .onFinishChange(() => render());
+  geometryFolder
+    .add(clientState.uiParams, "Visualize Skeleton")
     .onFinishChange((on: boolean) => {
-      if (on && clientState.params["Model Opacity"] > 0.5) {
-        clientState.params["Model Opacity"] = 0.5;
+      if (on && clientState.uiParams["Model Opacity"] > 0.5) {
+        clientState.uiParams["Model Opacity"] = 0.5;
       } else if (!on) {
-        clientState.params["Model Opacity"] = 1.0;
+        clientState.uiParams["Model Opacity"] = 1.0;
       }
+      render();
     });
 } else {
   controlsGuiFolder.hide();
-  geometryFolder.add(clientState.params, "Auto-Rotate");
+  geometryFolder.add(clientState.uiParams, "Auto-Rotate");
 }
-geometryFolder.add(clientState.params, "Visualize Normals");
-geometryFolder.onFinishChange(() => render());
+geometryFolder
+  .add(clientState.uiParams, "Visualize Normals")
+  .onFinishChange(() => render());
 
 const textureFolder = gui.addFolder("Texture");
 textureFolder
-  .add(clientState.params, "Render Mode", [
+  .add(clientState.uiParams, "Render Mode", [
     MaterialView.Flat,
     MaterialView.UV,
     MaterialView.Wireframe,
     MaterialView.Textured,
   ])
   .onFinishChange(() => render());
-textureFolder.addColor(clientState.params, "Ambient Color");
-textureFolder.add(clientState.params, "Ambient Intensity", 0, 8);
 textureFolder
-  .add(clientState.params, "Model Opacity", 0, 1, 0.01)
-  .onFinishChange(() => render())
-  .listen();
-textureFolder
-  .add(clientState.params, "Transparency")
-  .onFinishChange(() => render())
-  .listen();
-textureFolder
-  .add(clientState.params, "Invert Alpha")
-  .onFinishChange(() => render())
-  .listen();
-textureFolder
-  .add(clientState.params, "Alpha Test", 0, 1, 0.01)
-  .onFinishChange(() => render())
-  .listen();
-textureFolder
-  .add(clientState.params, "Render Side", [
+  .add(clientState.uiParams, "Render Side", [
     "DoubleSide",
     "FrontSide",
     "BackSide",
   ])
   .onFinishChange(() => render())
   .listen();
+textureFolder
+  .add(clientState.uiParams, "Wrapping", [
+    "ClampToEdge",
+    "Repeat",
+    "MirroredRepeat",
+  ])
+  .onFinishChange(() => render())
+  .listen()
+  .setValue(clientState.uiParams.Wrapping.replace("Wrapping", ""));
+textureFolder
+  .add(clientState.uiParams, "Model Opacity", 0, 1, 0.01)
+  .onFinishChange(() => render())
+  .listen();
+textureFolder
+  .add(clientState.uiParams, "Transparency")
+  .onFinishChange(() => render())
+  .listen();
+textureFolder
+  .add(clientState.uiParams, "Invert Alpha")
+  .onFinishChange(() => render())
+  .listen();
+textureFolder
+  .add(clientState.uiParams, "Alpha Test", 0, 1, 0.01)
+  .onFinishChange(() => render())
+  .listen();
+
+textureFolder.addColor(clientState.uiParams, "Ambient Color");
+textureFolder.add(clientState.uiParams, "Ambient Intensity", 0, 8);
+textureFolder
+  .add(clientState.uiParams, "Fancy Lighting")
+  .onFinishChange((value: boolean) => {
+    if (!value && lightGroup) {
+      lightGroup?.removeFromParent();
+      disposeResources(lightGroup);
+      lightGroup = undefined;
+      return;
+    } else if (value && !lightGroup) {
+      render();
+    }
+  });
 
 const width = appContainer.offsetWidth;
 const height = appContainer.offsetHeight;
@@ -248,37 +332,419 @@ const onWindowResize = () => {
   renderer.setSize(width, height);
   if (!gui._closed && width < 700) {
     gui.close();
+    textureViewerButton.hide();
+    editModeButton.hide();
+    clientState.setMode("viewing");
   } else if (width > 700 && gui._closed) {
     if (prefersReducedMotion) {
       gui.openAnimated();
     } else {
       gui.open();
     }
+    textureViewerButton.show();
+    editModeButton.show();
   }
 };
 onWindowResize();
 window.addEventListener("resize", onWindowResize);
 
-const scene = new Scene();
+const raycastHelper = new RaycastHelper(renderer, camera);
+const raycastTargets: Mesh[] = [];
+let raycastTargetsGenerated = false;
+
+const onClick = (event: MouseEvent) => {
+  if (!clientState.uiParams["Bone Controls"]) {
+    return;
+  }
+  const currentObject = clientState.getCurrentObject();
+  for (const skinnedMesh of currentObject?.children.filter(
+    (object) => object instanceof SkinnedMesh
+  ) ?? []) {
+    const bones = skinnedMesh.skeleton.bones;
+    if (!bones || !bones.length || !currentObject) {
+      return;
+    }
+    const cast = raycastHelper.cast(event, raycastTargets);
+    const nearest = cast.shift();
+    const parentBone = nearest?.object.parent;
+    if (parentBone instanceof Bone) {
+      const index = bones.indexOf(parentBone);
+      clientState.uiParams["Selected Bone"] = index;
+      boneTransformGizmo.getTransformControls().removeFromParent();
+      break;
+    }
+  }
+};
+appContainer.addEventListener("click", onClick);
+
+export const scene = new Scene();
 const pmremGenerator = new PMREMGenerator(renderer);
 scene.environment = pmremGenerator.fromScene(scene).texture;
 ColorManagement.enabled = true;
 renderer.outputColorSpace = SRGBColorSpace;
 renderer.toneMapping = ACESFilmicToneMapping;
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.autoRotate = clientState.params["Auto-Rotate"];
-controls.update();
+const orbitControls = new OrbitControls(camera, renderer.domElement);
+orbitControls.autoRotate = clientState.uiParams["Auto-Rotate"];
+orbitControls.update();
+const disableOrbitControls = () => (orbitControls.enabled = false);
+const enableOrbitControls = () => (orbitControls.enabled = true);
 
-const transformControls = new TransformControls(camera, renderer.domElement);
+const boneTransformGizmo = new Gizmo(scene, camera, renderer.domElement);
+boneTransformGizmo.setRenderLoop(() => {
+  boneTransformGizmo.getTransformControls().mode = clientState.uiParams[
+    "Controls Mode"
+  ] as "translate" | "rotate" | "scale";
+});
+boneTransformGizmo.setOnDrag(disableOrbitControls);
+boneTransformGizmo.setOnStopDrag(enableOrbitControls);
 
-const clock = new Clock();
+const modelTransformGizmo = new Gizmo(scene, camera, renderer.domElement);
+const modelRenderLoop = (controls: TransformControls) => {
+  controls.mode = clientState.uiParams["Controls Mode"] as
+    | "translate"
+    | "rotate"
+    | "scale";
+  controls.setRotationSnap(
+    (editorState.editorParams["Rotation Step"] / 180) * Math.PI
+  );
+};
+modelTransformGizmo.setRenderLoop(modelRenderLoop);
+modelTransformGizmo.setOnDrag(() => {
+  disableOrbitControls();
+  editorState.modelPropertyDiff.transform =
+    clientState.getCurrentObject()?.matrixWorld;
+});
+modelTransformGizmo.setOnStopDrag(enableOrbitControls);
 
-const group = new Group();
+const originalTransformGizmo = new Gizmo(scene, camera, renderer.domElement);
+originalTransformGizmo.setRenderLoop(modelRenderLoop);
+originalTransformGizmo.setOnDrag(disableOrbitControls);
+originalTransformGizmo.setOnStopDrag(enableOrbitControls);
+
 let helper: SkeletonHelper | undefined;
 
+const clock = new Clock();
+let group = new Group();
 let lastIndex = clientState.getFileIndex();
+
+const editor = new EditMode();
+
+clientState.setOnModeUpdate((oldMode) => {
+  const newMode = clientState.getMode();
+  document.body.classList.remove(oldMode);
+  clientState
+    .getTextureViewer()
+    ?.setState(
+      newMode === "edit" || clientState.uiParams["Texture Viewer 👀"]
+        ? TextureViewerStates.Locked
+        : TextureViewerStates.Inactive
+    );
+  document.body.classList.add(newMode);
+  if (newMode === "edit") {
+    consoleGui.openAnimated();
+  } else {
+    logger.disablePipeIfExists("editModeLog");
+    consoleGui.close();
+  }
+  onWindowResize();
+});
+
+let lightGroup: Group | undefined;
+
 const render = () => {
+  const modelCallback = (
+    model: SilentHillModel | undefined,
+    cleanupResources = true
+  ) => {
+    logger.debug("Parsed model structure", model);
+    scene.clear();
+    const light = new AmbientLight(
+      clientState.uiParams["Ambient Color"],
+      clientState.uiParams["Ambient Intensity"]
+    );
+    scene.add(light);
+    if (model === undefined) {
+      return;
+    }
+
+    if (cleanupResources) {
+      disposeResources(group);
+      helper?.dispose();
+      group.clear();
+    }
+    group = new Group();
+
+    raycastTargetsGenerated = false;
+    raycastTargets.length = 0;
+
+    if (editorState.cachedOriginalModel) {
+      scene.add(editorState.cachedOriginalModel);
+      if (clientState.uiParams["Visualize Skeleton"]) {
+        helper = new SkeletonHelper(editorState.cachedOriginalModel);
+        scene.add(helper);
+      }
+    }
+
+    // temporary: separate into opaque & transparent until specularity is implemented?
+    // likely need to create more materials for most accurate results
+    const opaqueMaterial = createMaterial(
+      model,
+      clientState.uiParams["Render Mode"] as MaterialType,
+      {
+        alphaTest: clientState.uiParams["Alpha Test"],
+        transparent: clientState.uiParams["Visualize Skeleton"],
+        side: RenderSideMap[
+          clientState.uiParams["Render Side"] as
+            | "DoubleSide"
+            | "FrontSide"
+            | "BackSide"
+        ],
+        opacity: clientState.uiParams["Model Opacity"],
+      },
+      clientState.uiParams["Invert Alpha"],
+      WrapMap[
+        clientState.uiParams.Wrapping as
+          | "ClampToEdgeWrapping"
+          | "RepeatWrapping"
+          | "MirroredRepeatWrapping"
+      ] ??
+        (model.modelData.geometry.primitiveHeaders[0].body.samplerStates[0] ===
+        0x01
+          ? RepeatWrapping
+          : ClampToEdgeWrapping)
+    );
+    const transparentMaterial = createMaterial(
+      model,
+      clientState.uiParams["Render Mode"] as MaterialType,
+      {
+        alphaTest: clientState.uiParams["Alpha Test"],
+        transparent:
+          clientState.uiParams.Transparency ||
+          clientState.uiParams["Visualize Skeleton"],
+        side: RenderSideMap[
+          clientState.uiParams["Render Side"] as
+            | "DoubleSide"
+            | "FrontSide"
+            | "BackSide"
+        ],
+        opacity: clientState.uiParams["Model Opacity"],
+      },
+      clientState.uiParams["Invert Alpha"],
+      WrapMap[
+        clientState.uiParams.Wrapping as
+          | "ClampToEdgeWrapping"
+          | "RepeatWrapping"
+          | "MirroredRepeatWrapping"
+      ] ??
+        (model.modelData.geometry.primitiveHeaders[0].body.samplerStates[0] ===
+        0x01
+          ? RepeatWrapping
+          : ClampToEdgeWrapping),
+      opaqueMaterial instanceof Material ? [opaqueMaterial] : opaqueMaterial
+    );
+
+    if (
+      opaqueMaterial instanceof Material &&
+      opaqueMaterial.name === "uv-map" &&
+      clientState.uiParams["Render Mode"] !== MaterialView.UV
+    ) {
+      textureFolder.hide();
+    } else {
+      textureFolder.show();
+    }
+
+    const opaqueGeometry = clientState.uiParams["Render Opaque"]
+      ? createGeometry(model, 0)
+      : undefined;
+
+    let modelSkeleton: Skeleton | undefined = undefined;
+    let opaqueMesh: SkinnedMesh | Mesh;
+    if (opaqueGeometry) {
+      opaqueGeometry.name = `${clientState.file}-opaque`;
+
+      if (clientState.uiParams["Skeleton Mode"]) {
+        const { skeleton, rootBoneIndices } = createSkeleton(model);
+        bindSkeletonToGeometry(model, opaqueGeometry);
+
+        opaqueMesh = new SkinnedMesh(opaqueGeometry, opaqueMaterial);
+        rootBoneIndices.forEach((boneIndex) =>
+          opaqueMesh.add(skeleton.bones[boneIndex])
+        );
+        (opaqueMesh as SkinnedMesh).bind(skeleton);
+        modelSkeleton = skeleton;
+
+        if (clientState.uiParams["Visualize Skeleton"]) {
+          helper = new SkeletonHelper(opaqueMesh);
+          scene.add(helper);
+        }
+      } else {
+        opaqueMesh = new Mesh(opaqueGeometry, opaqueMaterial);
+      }
+      opaqueMesh.renderOrder = 1;
+
+      if (clientState.uiParams["Visualize Normals"]) {
+        const normalsHelper = new VertexNormalsHelper(opaqueMesh, 8, 0xff0000);
+        opaqueMesh.add(normalsHelper);
+      }
+
+      logger.debug("Added opaque geometry to mesh!", opaqueGeometry);
+      group.add(opaqueMesh);
+    }
+
+    const transparentGeometry = clientState.uiParams["Render Transparent"]
+      ? createGeometry(model, 1)
+      : undefined;
+    let transparentMesh: SkinnedMesh | Mesh;
+    if (transparentGeometry) {
+      transparentGeometry.name = `${clientState.file}-transparent`;
+
+      if (clientState.uiParams["Skeleton Mode"]) {
+        transparentMesh = new SkinnedMesh(
+          transparentGeometry,
+          transparentMaterial
+        );
+
+        if (!opaqueGeometry || !modelSkeleton) {
+          const { skeleton, rootBoneIndices } = createSkeleton(model);
+          modelSkeleton = skeleton;
+          rootBoneIndices.forEach((boneIndex) =>
+            transparentMesh.add(skeleton.bones[boneIndex])
+          );
+        }
+        bindSkeletonToTransparentGeometry(model, transparentGeometry);
+        (transparentMesh as SkinnedMesh).bind(modelSkeleton);
+      } else {
+        transparentMesh = new Mesh(transparentGeometry, transparentMaterial);
+      }
+      transparentMesh.renderOrder = 2;
+
+      if (clientState.uiParams["Visualize Normals"]) {
+        const normalsHelper = new VertexNormalsHelper(
+          transparentMesh,
+          8,
+          0xff0000
+        );
+        transparentMesh.add(normalsHelper);
+      }
+
+      logger.debug("Added transparent geometry to mesh!", transparentGeometry);
+      group.add(transparentMesh);
+    }
+
+    group.userData = {
+      silentHillModel: {
+        name: clientState.file,
+        characterId: model.header.characterId,
+      },
+    };
+    logger.debug("Adding group to scene", group);
+    scene.add(group);
+
+    clientState.setCurrentObject(group);
+    clientState.getTextureViewer()?.attach(group);
+    if (
+      !clientState.getCustomModel() &&
+      (opaqueGeometry !== undefined || transparentGeometry !== undefined)
+    ) {
+      const fix = cameraFix[filename as MuseumFile];
+      fitCameraToSelection(camera, orbitControls, [group]);
+      if (fix !== undefined) {
+        orbitControls.target.copy(fix.controlsTarget);
+        camera.position.copy(fix.cameraPosition);
+        orbitControls.update();
+      }
+    }
+
+    let lightAnimate: (deltaTime: number) => void | undefined;
+    if (clientState.uiParams["Fancy Lighting"] && !lightGroup) {
+      const { lightGroup: fancyLightingGroup, animate: fancyLightingAnimate } =
+        createRainbowLights(group, 20);
+      lightGroup = fancyLightingGroup;
+      lightAnimate = fancyLightingAnimate;
+    }
+
+    if (
+      !clientState.getCustomModel() &&
+      clientState.folder === "favorites" &&
+      clientState.file === "org.mdl"
+    ) {
+      modelSkeleton?.bones[0]?.rotateZ(Math.PI / 2);
+      modelSkeleton?.bones[6]?.rotateZ(-Math.PI / 2);
+      modelSkeleton?.bones[7]?.rotateZ(-Math.PI / 2);
+      modelSkeleton?.bones[8]?.rotateZ(Math.PI / 2);
+    }
+
+    const maxBoneSelection = (modelSkeleton?.bones.length ?? 1) - 1;
+    boneSelector.max(maxBoneSelection);
+    if (maxBoneSelection === 0) {
+      boneSelector.hide();
+    } else if (clientState.uiParams["Bone Controls"]) {
+      boneSelector.show();
+    }
+
+    boneTransformGizmo.setOnAdded(() => {
+      if (!raycastTargetsGenerated) {
+        raycastTargetsGenerated = true;
+        const modelBones = modelSkeleton?.bones ?? [];
+        const bones = modelBones;
+        bones.forEach((bone) => {
+          const sphere = new SphereGeometry(8);
+          const material = new MeshBasicMaterial({
+            opacity: 0.5,
+            transparent: true,
+          });
+          const mesh = new Mesh(sphere, material);
+          raycastTargets.push(mesh);
+          bone.add(mesh);
+        });
+      }
+    });
+
+    function animate() {
+      const delta = clock.getDelta() * 120; // targeting 120 fps
+      modelTransformGizmo.render(
+        clientState.getMode() === "edit" &&
+          editorState.editorParams["Model Controls"],
+        group
+      );
+      boneTransformGizmo.render(
+        !!modelSkeleton && clientState.uiParams["Bone Controls"],
+        modelSkeleton?.bones[clientState.uiParams["Selected Bone"]]
+      );
+      originalTransformGizmo.render(
+        clientState.getMode() === "edit" &&
+          editorState.editorParams["Base Model Controls"],
+        editorState.cachedOriginalModel
+      );
+
+      orbitControls.autoRotate = clientState.uiParams["Auto-Rotate"];
+      orbitControls.update();
+
+      light.color = new Color(clientState.uiParams["Ambient Color"]);
+      light.intensity = clientState.uiParams["Ambient Intensity"];
+      lightAnimate?.(delta);
+
+      if (
+        !clientState.getCustomModel() &&
+        clientState.folder === "favorites" &&
+        clientState.file === "org.mdl"
+      ) {
+        modelSkeleton?.bones[2]?.rotateZ(delta * -0.005);
+        modelSkeleton?.bones[3]?.rotateZ(delta * -0.0025);
+      }
+
+      renderer.render(scene, camera);
+
+      if (clientState.uiParams["Render This Frame"]) {
+        exportCanvas(appContainer, clientState.file + ".png");
+        clientState.uiParams["Render This Frame"] = false;
+      }
+    }
+    renderer.setAnimationLoop(animate);
+    return group;
+  };
+
   const filename = clientState.file;
   const currentFileIndex = clientState.getFileIndex();
   if (lastIndex !== currentFileIndex) {
@@ -288,7 +754,7 @@ const render = () => {
     ) {
       showContentWarningModal(
         () => {
-          clientState.params["Lock To Folder"] = false;
+          clientState.uiParams["Lock To Folder"] = false;
           render();
         },
         () => {
@@ -304,13 +770,13 @@ const render = () => {
     lastIndex = currentFileIndex;
     if (filename in preferredParams) {
       Object.assign(
-        clientState.params,
+        clientState.uiParams,
         preferredParams[filename as keyof typeof preferredParams]
       );
     } else {
-      Object.assign(clientState.params, defaultParams);
+      Object.assign(clientState.uiParams, defaultParams);
     }
-    clientState.params["Selected Bone"] = 0;
+    clientState.uiParams["Selected Bone"] = 0;
 
     fileInput.setValue(clientState.file);
     scenarioInput.setValue(
@@ -320,223 +786,72 @@ const render = () => {
     folderInput.options(clientState.getPossibleFolders());
     fileInput.options(clientState.getPossibleFilenames());
 
-    if (clientState.params["Sharable Link"] && !!history.pushState) {
+    disposeResources(lightGroup);
+    lightGroup = undefined;
+
+    clientState.releaseCustomModel();
+
+    if (clientState.uiParams["Sharable Link"] && !!history.pushState) {
       updateLink();
     }
   }
-  loadModel(
-    `/mdl/${clientState.rootFolder}/${clientState.folder}/${clientState.file}`
-  ).then((model) => {
-    console.log("Parsed model structure", model);
-    scene.clear();
-    const light = new AmbientLight(
-      clientState.params["Ambient Color"],
-      clientState.params["Ambient Intensity"]
-    );
-    scene.add(light);
-    if (model === undefined) {
+
+  editor.toggleOptionsIfNeeded();
+  const customModel = clientState.getCustomModel();
+  if (customModel !== undefined) {
+    if (
+      clientState.getMode() === "edit" &&
+      editorState.serializerNeedsUpdate()
+    ) {
+      applyUpdate();
       return;
     }
 
-    group.children.forEach(
-      (child) =>
-        "dispose" in child &&
-        typeof child.dispose === "function" &&
-        child.dispose()
-    );
-    helper?.dispose();
-    group.clear();
-
-    // temporary: separate into primary & secondary until specularity is implemented?
-    // likely need to create more materials for most accurate results
-    const primaryMaterial = createMaterial(
-      model,
-      clientState.params["Render Mode"] as MaterialType,
-      {
-        alphaTest: clientState.params["Alpha Test"],
-        transparent: false,
-        side: RenderSideMap[
-          clientState.params["Render Side"] as
-            | "DoubleSide"
-            | "FrontSide"
-            | "BackSide"
-        ],
-        opacity: clientState.params["Model Opacity"],
-      },
-      clientState.params["Invert Alpha"]
-    );
-    const secondaryMaterial = createMaterial(
-      model,
-      clientState.params["Render Mode"] as MaterialType,
-      {
-        alphaTest: clientState.params["Alpha Test"],
-        transparent: clientState.params.Transparency,
-        side: RenderSideMap[
-          clientState.params["Render Side"] as
-            | "DoubleSide"
-            | "FrontSide"
-            | "BackSide"
-        ],
-        opacity: clientState.params["Model Opacity"],
-      },
-      clientState.params["Invert Alpha"]
-    );
-
     if (
-      primaryMaterial instanceof Material &&
-      primaryMaterial.name === "uv-map" &&
-      clientState.params["Render Mode"] !== MaterialView.UV
+      clientState.getMode() === "edit" &&
+      editorState.editorParams["Show Original"] &&
+      !editorState.cachedOriginalModel
     ) {
-      textureFolder.hide();
+      loadModel(clientState.fullPath).then((original) => {
+        const cachedOriginalModel = modelCallback(original);
+        if (cachedOriginalModel) {
+          cachedOriginalModel.parent = null;
+        }
+        cachedOriginalModel?.traverse((object) => {
+          if (object instanceof Mesh) {
+            const materials =
+              object.material instanceof Material
+                ? [object.material]
+                : object.material;
+            materials.forEach((material: Material) => {
+              material.transparent = true;
+              material.opacity = 0.5;
+            });
+          }
+        });
+        editorState.cachedOriginalModel = cachedOriginalModel;
+
+        const model = loadModelFromBytes(customModel.contents);
+        model._read();
+        modelCallback(model, false);
+      });
     } else {
-      textureFolder.show();
-    }
-
-    const primaryGeometry = clientState.params["Render Primary"]
-      ? createGeometry(model, 0)
-      : undefined;
-
-    let modelSkeleton: Skeleton | undefined = undefined;
-    if (primaryGeometry) {
-      primaryGeometry.name = `${clientState.file}-primary`;
-
-      let mesh: Mesh;
-
-      if (clientState.params["Skeleton Mode"]) {
-        const { skeleton, rootBoneIndices } = createSkeleton(model);
-        bindSkeletonToGeometry(model, primaryGeometry);
-
-        mesh = new SkinnedMesh(primaryGeometry, primaryMaterial);
-        rootBoneIndices.forEach((boneIndex) =>
-          mesh.add(skeleton.bones[boneIndex])
-        );
-        (mesh as SkinnedMesh).bind(skeleton);
-        modelSkeleton = skeleton;
-
-        if (clientState.params["Visualize Skeleton"]) {
-          helper = new SkeletonHelper(mesh);
-          scene.add(helper);
-        }
-      } else {
-        mesh = new Mesh(primaryGeometry, primaryMaterial);
-      }
-      mesh.renderOrder = 1;
-
-      if (clientState.params["Visualize Normals"]) {
-        const normalsHelper = new VertexNormalsHelper(mesh, 8, 0xff0000);
-        scene.add(normalsHelper);
-      }
-
-      console.log("Added primary geometry to mesh!", primaryGeometry);
-      group.add(mesh);
-    }
-
-    const secondaryGeometry = clientState.params["Render Extra"]
-      ? createGeometry(model, 1)
-      : undefined;
-    if (secondaryGeometry) {
-      secondaryGeometry.name = `${clientState.file}-secondary`;
-
-      let mesh: SkinnedMesh | Mesh;
-      if (clientState.params["Skeleton Mode"]) {
-        mesh = new SkinnedMesh(secondaryGeometry, secondaryMaterial);
-
-        if (!primaryGeometry || !modelSkeleton) {
-          const { skeleton, rootBoneIndices } = createSkeleton(model);
-          modelSkeleton = skeleton;
-          rootBoneIndices.forEach((boneIndex) =>
-            mesh.add(skeleton.bones[boneIndex])
-          );
-        }
-        bindSkeletonToSecondaryGeometry(model, secondaryGeometry);
-        (mesh as SkinnedMesh).bind(modelSkeleton);
-      } else {
-        mesh = new Mesh(secondaryGeometry, secondaryMaterial);
-      }
-      mesh.renderOrder = 2;
-
-      console.log("Added secondary geometry to mesh!", secondaryGeometry);
-      group.add(mesh);
-    }
-
-    scene.add(group);
-    clientState.setCurrentObject(group);
-    if (primaryGeometry !== undefined || secondaryGeometry !== undefined) {
-      const fix = cameraFix[filename as MuseumFile];
-      fitCameraToSelection(camera, controls, [group]);
-      if (fix !== undefined) {
-        controls.target.copy(fix.controlsTarget);
-        camera.position.copy(fix.cameraPosition);
-        controls.update();
-      }
-    }
-
-    if (clientState.folder === "favorites" && clientState.file === "org.mdl") {
-      modelSkeleton?.bones[0]?.rotateZ(Math.PI / 2);
-      modelSkeleton?.bones[6]?.rotateZ(-Math.PI / 2);
-      modelSkeleton?.bones[7]?.rotateZ(-Math.PI / 2);
-      modelSkeleton?.bones[8]?.rotateZ(Math.PI / 2);
-    }
-
-    const maxBoneSelection = (modelSkeleton?.bones.length ?? 1) - 1;
-    boneSelector.max(maxBoneSelection);
-    if (maxBoneSelection === 0) {
-      boneSelector.hide();
-    } else if (clientState.params["Bone Controls"]) {
-      boneSelector.show();
-    }
-
-    function animate() {
-      const delta = clock.getDelta() * 120; // targeting 120 fps
       if (
-        modelSkeleton &&
-        clientState.params["Bone Controls"] &&
-        transformControls.parent === null
+        !editorState.editorParams["Show Original"] &&
+        editorState.cachedOriginalModel instanceof Group
       ) {
-        transformControls.enabled = true;
-        transformControls.attach(
-          modelSkeleton.bones[clientState.params["Selected Bone"]]
-        );
-        transformControls.size = 0.5;
-        scene.add(transformControls);
-      } else if (
-        transformControls.parent &&
-        !clientState.params["Bone Controls"]
-      ) {
-        scene.remove(transformControls);
-        transformControls.enabled = false;
+        disposeResources(editorState.cachedOriginalModel);
+        editorState.cachedOriginalModel = undefined;
       }
-      transformControls.mode = clientState.params["Controls Mode"] as
-        | "translate"
-        | "rotate";
-      if (transformControls.dragging) {
-        controls.enabled = false;
-      } else {
-        controls.enabled = true;
-      }
-
-      controls.autoRotate = clientState.params["Auto-Rotate"];
-      controls.update();
-
-      light.color = new Color(clientState.params["Ambient Color"]);
-      light.intensity = clientState.params["Ambient Intensity"];
-
-      if (
-        clientState.folder === "favorites" &&
-        clientState.file === "org.mdl"
-      ) {
-        modelSkeleton?.bones[2]?.rotateZ(delta * -0.005);
-        modelSkeleton?.bones[3]?.rotateZ(delta * -0.0025);
-      }
-
-      renderer.render(scene, camera);
-
-      if (clientState.params["Render This Frame"]) {
-        exportCanvas(appContainer, clientState.file + ".png");
-        clientState.params["Render This Frame"] = false;
-      }
+      const model = loadModelFromBytes(customModel.contents);
+      model._read();
+      modelCallback(model);
     }
-    renderer.setAnimationLoop(animate);
+    return;
+  }
+  loadModel(clientState.fullPath).then((model) => {
+    clientState.setCurrentViewerModel(model);
+    modelCallback(model);
   });
 };
 render();

@@ -7,12 +7,21 @@ import {
   MuseumFile,
   travelAlongLevel,
 } from "../files";
-import { toggleWithBackground, onConfirm } from "../modals";
+import {
+  toggleWithBackground,
+  onConfirm,
+  showQuickModal,
+  isAnyElementOpen,
+} from "../modals";
 import { MaterialView } from "../model";
-import { exportModel } from "../utils";
+import SilentHillModel from "../kaitai/Mdl";
+import { disposeResources, exportModel, saveArrayBuffer } from "../utils";
 import { Object3D, Vector3 } from "three";
+import TextureViewer, { TextureViewerStates } from "./TextureViewer";
+import { editorState } from "./EditorState";
+import { renderStructToContainer } from "../visualize-struct";
 
-const START_INDEX = constructIndex("chr", "favorites", "org.mdl");
+export const START_INDEX = constructIndex("chr", "favorites", "org.mdl");
 const START_PATH_ARRAY = destructureIndex(START_INDEX);
 export const FilePath = {
   RootFolder: 0,
@@ -22,7 +31,7 @@ export const FilePath = {
 
 export default class MuseumState {
   public constructor() {
-    if (!window) {
+    if (typeof window === "undefined") {
       return;
     }
     const params = new URLSearchParams(window.location.search);
@@ -41,6 +50,7 @@ export default class MuseumState {
       ...(modelSplit as Parameters<typeof constructIndex>)
     );
     this.setFileIndex(this.defaultStartIndex);
+    this.updateUiFromState();
   }
 
   private fileIndex = START_INDEX;
@@ -48,7 +58,18 @@ export default class MuseumState {
   public defaultStartIndex = START_INDEX;
   private glVersion = 2;
   private currentObject?: Object3D;
+  private textureViewer?: TextureViewer;
+  private mode: "viewing" | "edit" = "viewing";
+  private saveRequested = false;
   private onUpdate?: () => void;
+  private onModeUpdate?: (previousMode: "viewing" | "edit") => void;
+
+  private currentViewerModel?: SilentHillModel;
+  private customModel?: {
+    contents: Uint8Array;
+    model: SilentHillModel;
+  };
+  private currentFile?: File;
 
   public setFileIndex(index: number) {
     this.fileIndex = index;
@@ -92,12 +113,16 @@ export default class MuseumState {
     this.setFileIndex(newIndex);
   }
 
+  public get fullPath() {
+    return `/mdl/${clientState.rootFolder}/${clientState.folder}/${clientState.file}`;
+  }
+
   public nextFile() {
     const newIndex = travelAlongLevel(
       this.fileIndex,
       FilePath.File,
       1,
-      this.params["Lock To Folder"]
+      this.uiParams["Lock To Folder"]
     );
     this.setFileIndex(newIndex);
   }
@@ -107,7 +132,7 @@ export default class MuseumState {
       this.fileIndex,
       FilePath.File,
       -1,
-      this.params["Lock To Folder"]
+      this.uiParams["Lock To Folder"]
     );
     this.setFileIndex(newIndex);
   }
@@ -141,12 +166,59 @@ export default class MuseumState {
     return this.rootFolder === "chr" ? chrFolders : chr2Folders;
   }
 
-  public hasAcceptedContentWarning() {
-    return !!localStorage.getItem("contentWarningAccepted");
-  }
-
   public setOnUpdate(onUpdate: () => void) {
     this.onUpdate = onUpdate;
+  }
+
+  public triggerUpdate() {
+    this.onUpdate?.();
+  }
+
+  public setOnModeUpdate(onUpdate: (mode: "viewing" | "edit") => void) {
+    this.onModeUpdate = onUpdate;
+  }
+
+  public requestSave() {
+    this.saveRequested = true;
+  }
+
+  public setCurrentViewerModel(model: SilentHillModel | undefined) {
+    this.currentViewerModel = model;
+  }
+
+  public setCustomModel(model: typeof this.customModel) {
+    this.customModel = model;
+    if (this.saveRequested && model?.contents) {
+      this.saveRequested = false;
+      let filename: string = this.file;
+      if (editorState.getSerializationParams().modelType === "NotexModel") {
+        filename = filename.replace(".mdl", "_notex.mdl");
+      }
+      saveArrayBuffer(model.contents, filename);
+    }
+    this.onUpdate?.();
+  }
+
+  /**
+   * Deletes a custom model and its state.
+   */
+  public releaseCustomModel() {
+    this.customModel = undefined;
+    editorState.resetSerializationState();
+    disposeResources(editorState.cachedOriginalModel);
+    editorState.cachedOriginalModel = undefined;
+  }
+
+  public getCustomModel() {
+    return this.customModel;
+  }
+
+  public setCurrentFile(file: File) {
+    this.currentFile = file;
+  }
+
+  public getCurrentFile() {
+    return this.currentFile;
   }
 
   public setGlVersion(glVersion: 0 | 1 | 2) {
@@ -161,15 +233,76 @@ export default class MuseumState {
     this.currentObject = object;
   }
 
-  public params = {
-    Scenario: "Main Scenario",
+  public getCurrentObject() {
+    return this.currentObject;
+  }
+
+  public setTextureViewer(viewer: TextureViewer) {
+    this.textureViewer = viewer;
+  }
+
+  public getTextureViewer() {
+    return this.textureViewer;
+  }
+
+  public hasAcceptedContentWarning() {
+    if (typeof localStorage === "undefined") {
+      return false;
+    }
+    return !!localStorage.getItem("contentWarningAccepted");
+  }
+
+  public getMode() {
+    return this.mode;
+  }
+
+  public setMode(mode: "viewing" | "edit") {
+    const old = this.mode;
+    const isEditMode = mode === "edit";
+    this.mode = mode;
+    this.uiParams["Edit Mode ✨"] = isEditMode;
+    this.textureViewer?.setState(
+      isEditMode || this.uiParams["Texture Viewer 👀"]
+        ? TextureViewerStates.Locked
+        : TextureViewerStates.Inactive
+    );
+    this.onModeUpdate?.(old);
+    return mode;
+  }
+
+  public toggleMode() {
+    this.setMode(this.mode === "viewing" ? "edit" : "viewing");
+  }
+
+  public updateUiFromState() {
+    Object.assign(this.uiParams, {
+      Scenario:
+        this.rootFolder === "chr" ? "Main Scenario" : "Born From A Wish",
+      Folder: this.folder,
+      Filename: this.file,
+    });
+  }
+
+  public uiParams = {
+    Scenario: this.rootFolder === "chr" ? "Main Scenario" : "Born From A Wish",
     Folder: this.folder,
     Filename: this.file,
+    "Edit Mode ✨": this.mode === "edit",
+    "Texture Viewer 👀": false,
     "Lock To Folder": true,
     "Sharable Link": false,
     "Next File": () => this.nextFile(),
     "Previous File": () => this.previousFile(),
-    "Save Image": () => (this.params["Render This Frame"] = true),
+    "Save Image": () => (this.uiParams["Render This Frame"] = true),
+    "View Structure 🔎": () => {
+      if (isAnyElementOpen()) {
+        return;
+      }
+      renderStructToContainer(
+        showQuickModal(undefined, "struct-visualizer"),
+        this.getCustomModel()?.model ?? this.currentViewerModel ?? {}
+      );
+    },
     "Export to GLTF": () => {
       const object = this.currentObject;
       if (object === undefined) {
@@ -182,13 +315,13 @@ export default class MuseumState {
       });
     },
 
-    "Auto-Rotate": true,
+    "Auto-Rotate": false,
     "Bone Controls": false,
     "Controls Mode": "rotate",
     "Selected Bone": 0,
 
-    "Render Primary": true,
-    "Render Extra": true,
+    "Render Opaque": true,
+    "Render Transparent": true,
     "Skeleton Mode": this.glVersion === 2,
     "Visualize Skeleton": false,
     "Visualize Normals": false,
@@ -200,7 +333,9 @@ export default class MuseumState {
     "Alpha Test": 0.01,
     "Invert Alpha": false,
     "Model Opacity": 1.0,
-    "Render Side": "FrontSide",
+    "Render Side": "DoubleSide",
+    Wrapping: "Default",
+    "Fancy Lighting": false,
 
     "Render This Frame": false,
     "Content Warning Accepted": this.hasAcceptedContentWarning(),
@@ -214,7 +349,7 @@ export const clientState = new MuseumState();
  * May be needed as certain properties haven't been reverse-engineered yet.
  */
 export const preferredParams: {
-  [File in MuseumFile]?: Partial<typeof clientState.params>;
+  [File in MuseumFile]?: Partial<typeof clientState.uiParams>;
 } = {
   "nef.mdl": {
     "Render Side": "DoubleSide",
@@ -273,7 +408,7 @@ export const defaultParams = Object.assign(
     Object.fromEntries(
       Object.keys(o).map((k) => [
         k,
-        clientState.params[k as keyof typeof clientState.params],
+        clientState.uiParams[k as keyof typeof clientState.uiParams],
       ])
     )
   )

@@ -2,20 +2,22 @@
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  background-color: #000;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
+a,
+button {
   color: #fff;
+  font-weight: 500;
+}
+
+a {
   text-decoration: underline;
 }
 
@@ -26,23 +28,11 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  place-items: center;
   min-width: 350px;
   min-height: 100vh;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-}
-
-@media all and (max-width: 700px) {
-  .lil-gui.root {
-    right: auto;
-    top: auto;
-    max-height: 50%;
-    max-width: 80%;
-    bottom: 0;
-    left: 0;
-  }
 }
 
 h1 {
@@ -57,42 +47,25 @@ h1 {
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vanilla:hover {
-  filter: drop-shadow(0 0 2em #3178c6aa);
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+body.edit #app {
+  height: 70%;
 }
 
 button {
-  color: #fff;
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
   font-size: 1em;
-  font-weight: 500;
   font-family: inherit;
   background-color: #1a1a1a;
   cursor: pointer;
   transition: border-color 0.25s;
 }
+
 button:hover {
   border-color: #bababd9a;
 }
+
 .modal button:focus,
 .modal button:focus-visible {
   outline: 1px solid #fdfdff9a;
@@ -116,9 +89,13 @@ button:hover {
   margin-top: 0;
 }
 
+#blur-background,
 .modal {
   display: none;
   position: absolute;
+}
+
+.modal {
   z-index: 9999;
   left: 50%;
   top: 50%;
@@ -130,10 +107,10 @@ button:hover {
   background-color: rgba(0, 0, 0);
   border: 1px solid #aaa;
   padding: 1rem;
-  font-size: 1rem;
   text-transform: lowercase;
 }
 
+.modal,
 .modal h1 {
   font-size: 1rem;
 }
@@ -142,9 +119,15 @@ blockquote {
   font-style: italic;
 }
 
+.about-modal-header {
+  text-align: center;
+}
+
+.about-modal-header img {
+  width: 80%;
+}
+
 #blur-background {
-  display: none;
-  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
@@ -179,7 +162,8 @@ kbd {
   }
 }
 
-#keybinds-note {
+#keybinds-note,
+#mode-indicator {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -187,6 +171,31 @@ kbd {
   padding: 0.5rem;
   line-height: 0.5rem;
   margin: 0;
+}
+
+#mode-indicator {
+  bottom: 1.5rem;
+  display: flex;
+}
+
+#mode-indicator a {
+  text-decoration: none;
+}
+
+#mode-indicator img {
+  width: 1em;
+}
+
+span.edit-mode,
+span.viewing-mode {
+  display: none;
+  height: 0.75rem;
+}
+
+body.edit .edit-mode,
+body.viewing .viewing-mode {
+  display: flex;
+  justify-content: center;
 }
 
 table {
@@ -212,4 +221,332 @@ ol {
 
 .no-margin-bottom {
   margin-bottom: 0;
+}
+
+.accent,
+.output-log .error {
+  color: #d676ae;
+}
+
+.accent-complement {
+  color: #76d69e;
+}
+
+#sidebar-container {
+  width: 250px;
+  max-width: 250px;
+  min-width: 250px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  pointer-events: none;
+}
+
+#sidebar {
+  position: absolute;
+  pointer-events: all;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: calc(100% - 4rem);
+  background: #1f1f1f;
+  box-shadow: 5px 0 5px 0#141414;
+  transition: left 0.3s ease;
+  padding: 1rem;
+  text-align: center;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  font-size: 0.75rem;
+  padding: 0;
+}
+
+#sidebar .texture-viewer-container .title::before,
+#sidebar.root > .title::before,
+.viewing #sidebar > *,
+body.viewing .flexbox-container .placeholder .lil-gui.root {
+  display: none;
+}
+
+.viewing #sidebar .texture-viewer-container {
+  display: flex;
+}
+
+#sidebar.root > .title {
+  cursor: default;
+  text-align: center;
+}
+
+#sidebar .texture-viewer-container .title {
+  pointer-events: none;
+  text-align: center;
+}
+
+#sidebar .title {
+  text-align: left;
+  border-bottom: 1px solid #424242;
+  flex-shrink: 0;
+}
+
+#sidebar .title:first {
+  text-align: center;
+}
+
+#sidebar .title:hover {
+  opacity: 1;
+}
+
+#sidebar .content {
+  padding: 0.5rem;
+  text-align: left;
+  line-height: 1.5;
+}
+
+#sidebar .texture-viewer-container {
+  overflow-y: hidden;
+  height: 100%;
+  max-height: 100%;
+}
+
+#sidebar .closed .content.texture-viewer {
+  max-height: 0;
+  padding: 0;
+}
+
+#sidebar .content.texture-viewer {
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+#sidebar .lil-gui.root,
+#sidebar div.children {
+  width: 100%;
+}
+
+#sidebar .filepicker {
+  margin-top: 0.25rem;
+}
+
+.output-log {
+  overflow-y: auto;
+  overflow-x: hidden;
+  font-family: monospace;
+}
+
+.output-log .info {
+  color: #8990dc;
+}
+
+.output-log .debug {
+  color: #b881d9;
+}
+
+.output-log .warn {
+  color: #e7b7d7;
+}
+
+.texture-image {
+  width: 90%;
+  max-height: 256px;
+  border: 2px dotted #fff;
+  cursor: pointer;
+  object-fit: contain;
+  aspect-ratio: 1;
+  background-color: #000;
+  margin-bottom: 0.5rem;
+}
+
+#sidebar.hover {
+  left: 0;
+}
+
+#sidebar .sidebar-buttons .controller.function {
+  padding: 0;
+}
+
+#sidebar .children {
+  padding-left: 0.125rem;
+}
+
+#sidebar .bonemap-textarea {
+  margin: 0.5rem;
+  height: 4rem;
+}
+
+#sidebar .bonemap-textarea:focus {
+  outline: 0;
+}
+
+#sidebar .bonemap-button {
+  width: 2rem;
+  margin: 0.5rem;
+  margin-top: 0;
+}
+
+.preview-modal img {
+  max-height: 512px;
+  width: 100%;
+  max-width: 100%;
+  border: 0;
+  cursor: default;
+  margin-bottom: 0;
+}
+
+.flexbox-container,
+footer {
+  width: 100vw;
+  position: absolute;
+  left: 0;
+}
+
+.flexbox-container {
+  display: flex;
+  height: 100vh;
+  top: 0;
+}
+
+.flexbox-container > div {
+  flex: 0 1 250px;
+}
+
+.flexbox-container .placeholder {
+  display: flex;
+  align-items: end;
+  flex: 1;
+  max-height: 100%;
+  margin: 0 0.5rem;
+}
+
+.lil-gui.root {
+  pointer-events: all;
+}
+
+.flexbox-container .placeholder .lil-gui.root {
+  width: 100%;
+  height: 200px;
+  pointer-events: all;
+  z-index: 99;
+}
+
+.flexbox-container .placeholder .lil-gui.root.closed {
+  min-height: 0;
+  height: 25px;
+}
+
+#console,
+.flexbox-container .placeholder .lil-gui.root.closed .children {
+  height: 0;
+}
+
+.flexbox-container .placeholder .lil-gui.root .children {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.flexbox-container .placeholder .output-log {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-height: 200px;
+  padding: 0.5rem;
+  transition: height 0.3s;
+  background: #000;
+  border-top: 1px solid rgba(200, 200, 200, 0.5);
+  border-left: 1px solid rgba(200, 200, 200, 0.5);
+  border-right: 1px solid rgba(200, 200, 200, 0.5);
+  user-select: text;
+}
+
+body.viewing .flexbox-container .placeholder .output-log {
+  height: 0;
+  padding: 0;
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+.ui {
+  pointer-events: all;
+}
+
+#main-gui {
+  max-width: 250px;
+  max-height: calc(100% - 4rem);
+  float: right;
+  box-shadow: 5px 0 5px 0#141414;
+}
+
+footer {
+  height: 3rem;
+  padding-top: 0.5rem;
+  bottom: 0;
+}
+
+.struct-visualizer .json-key {
+  font-style: italic;
+}
+div.struct-visualizer button.json-dropdown {
+  all: unset;
+  cursor: pointer;
+  font-weight: bold;
+  position: relative;
+}
+div.struct-visualizer button.json-dropdown.interactive:focus::before {
+  content: "★";
+  width: 1rem;
+  height: 1rem;
+  position: absolute;
+  left: -1.25rem;
+  top: 0;
+}
+.struct-visualizer p {
+  margin: 0;
+}
+.struct-visualizer p.title {
+  text-align: center;
+  font-size: 1.25rem;
+}
+.struct-visualizer .json-literal {
+  color: #d676ae;
+}
+.struct-visualizer .json-content {
+  margin-left: 1.2rem;
+  display: none;
+}
+div.struct-visualizer {
+  overflow-x: auto;
+  overflow-y: auto;
+  text-transform: none;
+}
+
+@media all and (max-width: 700px) {
+  .flexbox-container .placeholder .lil-gui.root,
+  footer {
+    display: none;
+  }
+
+  #main-gui.lil-gui.root {
+    position: fixed;
+    right: auto;
+    top: auto;
+    max-height: 50%;
+    max-width: 80%;
+    bottom: 0;
+    left: 0;
+    float: none;
+  }
+
+  #sidebar-container {
+    width: 0;
+    max-width: 0;
+    min-width: 0;
+    display: none;
+  }
 }

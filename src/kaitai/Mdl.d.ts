@@ -10,12 +10,78 @@ declare class Mdl {
   constructor(io: any, parent?: any, root?: any);
   __type: 'Mdl';
   _io: any;
+  _read: () => void;
+  _fetchInstances: () => void;
+  _write__seq: (_io: KaitaiStream) => void;
+  _writeBackChildStreams: () => void;
 
   textureData: Mdl.TextureData;
   header: Mdl.FileHeader;
   modelData: Mdl.Model;
   _raw_header: Uint8Array;
   _raw__m_textureData: Uint8Array;
+}
+
+declare namespace Mdl {
+  class Cluster {
+    constructor(io: any, parent?: any, root?: any);
+    __type: 'Cluster';
+    _io: any;
+
+    data: Mdl.ClusterDataList;
+    nodeCount: number;
+    offset: number;
+  }
+}
+
+declare namespace Mdl {
+  class ClusterData {
+    constructor(io: any, parent?: any, root?: any);
+    __type: 'ClusterData';
+    _io: any;
+
+    vector: Mdl.S2Vector;
+    vertexIndex: number;
+  }
+}
+
+declare namespace Mdl {
+  class ClusterDataList {
+    constructor(io: any, parent?: any, root?: any);
+    __type: 'ClusterDataList';
+    _io: any;
+
+    vertices: Mdl.ClusterData[];
+    alignment: Uint8Array;
+    normals: Mdl.ClusterData[];
+  }
+}
+
+
+/**
+ * Unknown original IDs for all properties.
+ */
+declare namespace Mdl {
+  class ClusterMapping {
+    constructor(io: any, parent?: any, root?: any);
+    __type: 'ClusterMapping';
+    _io: any;
+
+    sourceStartIndex: number;
+    targetStartIndex: number;
+    count: number;
+  }
+}
+
+declare namespace Mdl {
+  class ClusterMaps {
+    constructor(io: any, parent?: any, root?: any);
+    __type: 'ClusterMaps';
+    _io: any;
+
+    opaque: Mdl.ClusterMapping[];
+    transparent: Mdl.ClusterMapping[];
+  }
 }
 
 declare namespace Mdl {
@@ -66,13 +132,13 @@ declare namespace Mdl {
     __type: 'Geometry';
     _io: any;
 
-    secondaryPrimitiveHeaders: Mdl.SecondaryPrimitiveHeaderWrapper[];
+    transparentPrimitiveHeaders: Mdl.TransparentPrimitiveHeaderWrapper[];
 
     /**
      * List of vertex indices, which represent triangle strips.
      */
-    secondaryTriangleIndices: Mdl.IndexList;
-    secondaryVertexList: Mdl.SecondaryVertexData[];
+    transparentTriangleIndices: Mdl.IndexList;
+    transparentVertexList: Mdl.TransparentVertexData[];
     vertexList: Mdl.VertexData[];
     primitiveHeaders: Mdl.PrimitiveHeaderWrapper[];
 
@@ -81,7 +147,7 @@ declare namespace Mdl {
      */
     triangleIndices: Mdl.IndexList;
     _raw_triangleIndices: Uint8Array;
-    _raw__m_secondaryTriangleIndices: Uint8Array;
+    _raw__m_transparentTriangleIndices: Uint8Array;
   }
 }
 
@@ -107,14 +173,31 @@ declare namespace Mdl {
 
 
     /**
-     * Currently unknown purpose/interpretation
+     * Unknown original name.
      */
-    clusterNodes: Uint8Array;
+    clusterMaps: Mdl.ClusterMaps;
+    clusterNodeNormals: Mdl.S2Vector[];
 
     /**
-     * Unknown purpose and size computation.
+     * This is a helper, not part of the original mdl structure.
      */
-    clusters: Uint8Array;
+    clusterNodeNormalsOffset: number;
+
+    /**
+     * This is a helper, not part of the original mdl structure.
+     */
+    clusterNodePaddingAmount: number;
+
+    /**
+     * Morph targets for facial animation.
+     */
+    clusterNodes: Mdl.S2Vector[];
+
+    /**
+     * This is a helper, not part of the original mdl structure.
+     */
+    clusterNodesHaveNormals: boolean;
+    clusters: Mdl.Cluster[];
 
     /**
      * The start of the geometry data.
@@ -168,20 +251,20 @@ declare namespace Mdl {
     primitiveHeadersOffset: number;
 
     /**
-     * Number of secondary primitive headers, used for separate parts such
+     * Number of transparent primitive headers, used for separate parts such
      * as hair? On the PS2 version, this field is called "n_vu0_parts",
      * suggesting that these were handled by the VU0 coprocessor, while
-     * the primary primitive headers were handled by the VU1 coprocessor.
+     * the opaque primitive headers were handled by the VU1 coprocessor.
      */
-    secondaryPrimitiveHeadersCount: number;
+    transparentPrimitiveHeadersCount: number;
 
     /**
-     * Offset to secondary primitive headers, used for separate parts such
+     * Offset to transparent primitive headers, used for separate parts such
      * as hair? On the PS2 version, this field is called "n_vu0_parts",
      * suggesting that these were handled by the VU0 coprocessor, while
-     * the primary primitive headers were handled by the VU1 coprocessor.
+     * the opaque primitive headers were handled by the VU1 coprocessor.
      */
-    secondaryPrimitiveHeadersOffset: number;
+    transparentPrimitiveHeadersOffset: number;
 
     /**
      * Number of texture blocks.
@@ -278,14 +361,14 @@ declare namespace Mdl {
     vertexDataOffset: number;
 
     /**
-     * Number of secondary vertices.
+     * Number of transparent vertices.
      */
-    secondaryVertexCount: number;
+    transparentVertexCount: number;
 
     /**
-     * Offset to secondary vertex data.
+     * Offset to transparent vertex data.
      */
-    secondaryVertexDataOffset: number;
+    transparentVertexDataOffset: number;
 
     /**
      * Offset to triangle index data.
@@ -293,12 +376,24 @@ declare namespace Mdl {
     triangleIndexOffset: number;
 
     /**
-     * Offset to secondary triangle index data.
+     * Offset to transparent triangle index data.
      */
-    secondaryTriangleIndexOffset: number;
-    unknown3: number;
-    unknown4: number;
-    unknown5: number;
+    transparentTriangleIndexOffset: number;
+
+    /**
+     * Unknown original name.
+     */
+    opaqueClusterMapCount: number;
+
+    /**
+     * Unknown original name.
+     */
+    transparentClusterMapCount: number;
+
+    /**
+     * Unknown original name.
+     */
+    clusterMapOffset: number;
     pad0: Uint8Array;
 
     /**
@@ -348,12 +443,7 @@ declare namespace Mdl {
      * concept applies.
      */
     bonePairIndices: Mdl.IndexList;
-
-    /**
-     * Seems to always be 0x03 0x03 0x02 0x02, but see also the marker field
-     * of the secondary_primitive_header type.
-     */
-    marker: Uint8Array;
+    samplerStates: number[];
 
     /**
      * A list of texture indices? TODO
@@ -392,9 +482,43 @@ declare namespace Mdl {
     textureIndexOffset: number;
 
     /**
-     * Offset to a marker sequence, which ends the header.
+     * From FF24, this is an offset to ADDRESSU, ADDRESSV, MAGFILTER and 
+     * MINFILTER sampler states.
      */
-    markerOffset: number;
+    samplerStatesOffset: number;
+
+    /**
+     * See FrozenFish24's SH2MapTools/Sh2ModelMaterialEditor/Model.py#L75
+     */
+    materialType: Mdl.PrimitiveHeader.MaterialType;
+
+    /**
+     * Possibly material-related, see `material_type`.
+     */
+    unknownByte0: number;
+
+    /**
+     * If zero, this primitive is always visible. Otherwise, it may be
+     * hidden and swapped out at various times, e.g. for James's hands.
+     */
+    poseIndex: number;
+    unknownByte1: number;
+    backfaceCulling: number;
+
+    /**
+     * From FF24, reported to affect diffuse color somehow.
+     */
+    unknownFloat0: number;
+
+    /**
+     * From FF24, reported to affect ambient color somehow.
+     */
+    unknownFloat1: number;
+
+    /**
+     * From FF24, larger value = smaller specular.
+     */
+    specularScale: number;
 
     /**
      * Unknown purpose.
@@ -403,21 +527,22 @@ declare namespace Mdl {
     pad1: Uint8Array;
 
     /**
-     * Curious unknown floats. Often seem to be around 2 / 3.
+     * From FF24, this is the diffuse color.
      */
-    unknownFloats0: number[];
+    diffuseColor: number[];
     pad2: Uint8Array;
 
     /**
-     * Curious unknown floats. Often seem to be around 1 / 3.
+     * From FF24, this is the ambient color.
      */
-    unknownFloats1: number[];
+    ambientColor: number[];
     pad3: Uint8Array;
 
     /**
-     * Purpose unknown.
+     * From FF24, this is the specular color (range 0-128).
      */
-    unknownSection1: Uint8Array;
+    specularColor: number[];
+    pad4: Uint8Array;
 
     /**
      * Offset into the triangle index array where the primitive begins.
@@ -428,7 +553,7 @@ declare namespace Mdl {
      * The length of the primitive in the triangle index array.
      */
     primitiveLength: number;
-    pad4: Uint8Array;
+    pad5: Uint8Array;
 
     /**
      * The bone index array from this primitive. An important point is that
@@ -438,6 +563,17 @@ declare namespace Mdl {
     boneIndices: number[];
     _raw__m_bonePairIndices: Uint8Array;
     _raw__m_textureIndices: Uint8Array;
+  }
+}
+
+declare namespace Mdl {
+  namespace PrimitiveHeader {
+    enum MaterialType {
+      UNLIT = 1,
+      MATTE = 2,
+      MATTE_PLUS = 3,
+      GLOSSY = 4,
+    }
   }
 }
 
@@ -454,122 +590,14 @@ declare namespace Mdl {
 }
 
 declare namespace Mdl {
-  class SecondaryPrimitiveHeader {
+  class S2Vector {
     constructor(io: any, parent?: any, root?: any);
-    __type: 'SecondaryPrimitiveHeader';
+    __type: 'S2Vector';
     _io: any;
 
-    pad0: Uint8Array;
-
-    /**
-     * There's only ever one, so could be wrong?
-     */
-    textureIndexCount: number;
-    textureIndexOffset: number;
-    markerOffset: number;
-    unknownCount: number;
-    unknownSection0: Uint8Array;
-    pad1: number;
-    unknownFloats0: number[];
-    pad2: number;
-    unknownFloats1: number[];
-    unknownSection1: Uint8Array;
-
-    /**
-     * Offset into the triangle index array where the primitive begins.
-     */
-    primitiveStartIndex: number;
-
-    /**
-     * The length of the primitive in the triangle index array.
-     */
-    primitiveLength: number;
-
-    /**
-     * Appears to be an array index for this primitive header.
-     */
-    primitiveIndex: number;
-    textureIndex: number;
-    pad3: Uint8Array;
-
-    /**
-     * And that's a--an almost... magic... number...? Turns out this can be
-     * [0x03, 0x03, 0x02, 0x02], or [0x03, 0x03, 0x01, 0x01].
-     */
-    marker: Uint8Array;
-  }
-}
-
-declare namespace Mdl {
-  class SecondaryPrimitiveHeaderWrapper {
-    constructor(io: any, parent?: any, root?: any);
-    __type: 'SecondaryPrimitiveHeaderWrapper';
-    _io: any;
-
-    secondaryPrimitiveHeaderSize: number;
-    body: Mdl.SecondaryPrimitiveHeader;
-    _raw_body: Uint8Array;
-  }
-}
-
-declare namespace Mdl {
-  class SecondaryVertexData {
-    constructor(io: any, parent?: any, root?: any);
-    __type: 'SecondaryVertexData';
-    _io: any;
-
-
-    /**
-     * The x-coordinate of the vertex.
-     */
     x: number;
-
-    /**
-     * The y-coordinate of the vertex.
-     */
     y: number;
-
-    /**
-     * The z-coordinate of the vertex.
-     */
     z: number;
-    w: number;
-    boneWeights: number[];
-
-    /**
-     * The x-coordinate of the normal vector.
-     */
-    normalX: number;
-
-    /**
-     * The y-coordinate of the normal vector.
-     */
-    normalY: number;
-
-    /**
-     * The z-coordinate of the normal vector.
-     */
-    normalZ: number;
-    unknown1: Uint8Array;
-
-    /**
-     * The texture coordinate along the horizontal axis (x), from 0 to 1.
-     */
-    u: number;
-
-    /**
-     * The texture coordinate along the vertical axis (y), from 0 to 1.
-     */
-    v: number;
-    unknown2: Uint8Array;
-    boneIndex: number;
-    unknown3: number;
-    bonePairIndex0: number;
-    unknown4: number;
-    bonePairIndex1: number;
-    unknown5: number;
-    bonePairIndex2: number;
-    unknown6: number;
   }
 }
 
@@ -729,6 +757,126 @@ declare namespace Mdl {
     translationY: number;
     translationZ: number;
     translationW: number;
+  }
+}
+
+declare namespace Mdl {
+  class TransparentPrimitiveHeader {
+    constructor(io: any, parent?: any, root?: any);
+    __type: 'TransparentPrimitiveHeader';
+    _io: any;
+
+    pad0: Uint8Array;
+
+    /**
+     * There's only ever one, so could be wrong?
+     */
+    textureIndexCount: number;
+    textureIndexOffset: number;
+    markerOffset: number;
+    unknownCount: number;
+    unknownSection0: Uint8Array;
+    pad1: number;
+    unknownFloats0: number[];
+    pad2: number;
+    unknownFloats1: number[];
+    unknownSection1: Uint8Array;
+
+    /**
+     * Offset into the triangle index array where the primitive begins.
+     */
+    primitiveStartIndex: number;
+
+    /**
+     * The length of the primitive in the triangle index array.
+     */
+    primitiveLength: number;
+
+    /**
+     * Appears to be an array index for this primitive header.
+     */
+    primitiveIndex: number;
+    textureIndex: number;
+    pad3: Uint8Array;
+
+    /**
+     * And that's a--an almost... magic... number...? Turns out this can be
+     * [0x03, 0x03, 0x02, 0x02], or [0x03, 0x03, 0x01, 0x01].
+     */
+    marker: Uint8Array;
+  }
+}
+
+declare namespace Mdl {
+  class TransparentPrimitiveHeaderWrapper {
+    constructor(io: any, parent?: any, root?: any);
+    __type: 'TransparentPrimitiveHeaderWrapper';
+    _io: any;
+
+    transparentPrimitiveHeaderSize: number;
+    body: Mdl.TransparentPrimitiveHeader;
+    _raw_body: Uint8Array;
+  }
+}
+
+declare namespace Mdl {
+  class TransparentVertexData {
+    constructor(io: any, parent?: any, root?: any);
+    __type: 'TransparentVertexData';
+    _io: any;
+
+
+    /**
+     * The x-coordinate of the vertex.
+     */
+    x: number;
+
+    /**
+     * The y-coordinate of the vertex.
+     */
+    y: number;
+
+    /**
+     * The z-coordinate of the vertex.
+     */
+    z: number;
+    w: number;
+    boneWeights: number[];
+
+    /**
+     * The x-coordinate of the normal vector.
+     */
+    normalX: number;
+
+    /**
+     * The y-coordinate of the normal vector.
+     */
+    normalY: number;
+
+    /**
+     * The z-coordinate of the normal vector.
+     */
+    normalZ: number;
+    unknown1: Uint8Array;
+
+    /**
+     * The texture coordinate along the horizontal axis (x), from 0 to 1.
+     */
+    u: number;
+
+    /**
+     * The texture coordinate along the vertical axis (y), from 0 to 1.
+     */
+    v: number;
+    unknown2: Uint8Array;
+    boneIndex: number;
+    unknown3: number;
+    bonePairIndex0: number;
+    unknown4: number;
+    bonePairIndex1: number;
+    unknown5: number;
+    bonePairIndex2: number;
+    unknown6: number;
   }
 }
 

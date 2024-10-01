@@ -2,17 +2,19 @@ import path from "path";
 import { expect, test } from "vitest";
 import { loadModel } from "../load";
 import { globby } from "globby";
-import SilentHillModel from "../types/Mdl";
+import SilentHillModel from "../kaitai/Mdl";
 import { transformationMatrixToMat4 } from "../utils";
 import { BufferGeometry, Skeleton } from "three";
 import {
   bindSkeletonToGeometry,
-  bindSkeletonToSecondaryGeometry,
+  bindSkeletonToTransparentGeometry,
   createMaterial,
   createSkeleton,
 } from "../model";
+import logger from "../objects/Logger";
 
 const QUICK = process.env.QUICK;
+const VERBOSE = true;
 
 const modelCache: {
   [filename: string]: {
@@ -38,6 +40,9 @@ test("should parse all models without error", async () => {
     if (file.endsWith("_st.mdl")) {
       // unknown, skip
       continue;
+    }
+    if (VERBOSE) {
+      logger.info("Parsing", file);
     }
     const model = loadModelWithCache(file);
     await expect(model).resolves.not.toThrow();
@@ -140,6 +145,63 @@ test("should successfully build skeletons", () => {
   }
 });
 
+test("should recognize unique texture identifiers", () => {
+  const allTextureIds: number[] = [];
+  const allSpriteIds: number[] = [];
+  const textureCounts: number[] = [];
+  const textureToSpriteMap: {
+    [textureId: number]: { array: number[]; filename: string };
+  } = {};
+  for (const file in modelCache) {
+    const { model } = modelCache[file];
+    if (model === undefined) {
+      continue;
+    }
+
+    // model may not have any textures; check first
+    textureCounts.push(model.header.textureCount);
+    const textureMetadata = model.modelData.textureMetadata;
+    if (textureMetadata === undefined) {
+      expect(model.header.textureCount).toStrictEqual(0);
+      continue;
+    }
+
+    // model has textures, record relevant ids
+    const textureIds = textureMetadata.mainTextureIds;
+    allTextureIds.push(...textureIds);
+    let skipSprites = false;
+    for (const textureId of textureIds) {
+      if (textureToSpriteMap[textureId] !== undefined) {
+        // expect this to be a reused texture
+        // we can do this by assuming that the second-to-last item in the
+        // filename split is a folder name, and expecting this folder name
+        // to match that of the model where this texture was loaded
+        const thisFolderName = file.split("/").at(-2);
+        const originalFolderName = file.split("/").at(-2);
+        expect(thisFolderName).toEqual(originalFolderName);
+        skipSprites = true;
+        continue;
+      }
+      expect(textureToSpriteMap[textureId]).toBeUndefined();
+    }
+    if (skipSprites) {
+      continue;
+    }
+    for (const pair of textureMetadata.texturePairs) {
+      const textureId = textureIds[pair.textureIndex];
+      textureToSpriteMap[textureId] ??= { array: [], filename: file };
+      textureToSpriteMap[textureId].array.push(pair.spriteId);
+      allSpriteIds.push(pair.spriteId);
+    }
+  }
+  logger.debug("Maximum texture count", Math.max(...textureCounts));
+  logger.debug("Minimum texture ID", Math.min(...allTextureIds));
+  logger.debug("Maximum texture ID", Math.max(...allTextureIds));
+  logger.debug("Minimum sprite ID", Math.min(...allSpriteIds));
+  logger.debug("Maximum sprite ID", Math.max(...allSpriteIds));
+  logger.debug(textureToSpriteMap);
+});
+
 if (!QUICK) {
   test("should be able to bind skeletons to geometry", () => {
     for (const file in modelCache) {
@@ -158,9 +220,9 @@ if (!QUICK) {
         ).toBeGreaterThan(0);
         geometry.dispose();
       }
-      if (model.modelData.secondaryPrimitiveHeadersCount > 0) {
+      if (model.modelData.transparentPrimitiveHeadersCount > 0) {
         const geometry = new BufferGeometry();
-        bindSkeletonToSecondaryGeometry(model, geometry);
+        bindSkeletonToTransparentGeometry(model, geometry);
         expect(geometry.getAttribute("skinIndex").array.length).toBeGreaterThan(
           0
         );

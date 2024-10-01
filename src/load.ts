@@ -1,5 +1,6 @@
-import KaitaiStream from "./types/KaitaiStream";
-import SilentHillModel from "./types/Mdl";
+import logger from "./objects/Logger";
+import KaitaiStream from "./kaitai/runtime/KaitaiStream";
+import SilentHillModel from "./kaitai/Mdl";
 
 export type ModelCache = { [url: string]: SilentHillModel | undefined };
 export const modelCache: ModelCache = {};
@@ -12,7 +13,7 @@ export const fetchRawBytes = async (url: string): Promise<ArrayBuffer> => {
     }
     return await response.arrayBuffer();
   } catch (error) {
-    console.error("There was a problem with the fetch operation:", error);
+    logger.error("There was a problem with the fetch operation:", error);
     throw error;
   }
 };
@@ -24,21 +25,22 @@ export const loadModelFromBytes = (bytes: ArrayBuffer) => {
 };
 
 export const loadModel = async (url: string) => {
-  console.log(`Attempting to load model ${url}`);
+  logger.info(`Attempting to load model ${url}`);
   if (url in modelCache) {
     return modelCache[url];
   }
   if (!url.endsWith(".mdl")) {
-    console.warn("Cannot load files other than .mdl.");
+    logger.warn("Cannot load files other than .mdl.");
     return undefined;
   }
   const bytes = await fetchRawBytes(url);
   if (bytes.byteLength === 0) {
-    console.warn("File is empty.");
+    logger.warn("File is empty.");
     modelCache[url] = undefined;
     return undefined;
   }
   const model = loadModelFromBytes(bytes);
+  model._read();
   modelCache[url] = model;
   return model;
 };

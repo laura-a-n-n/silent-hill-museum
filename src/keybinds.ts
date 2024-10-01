@@ -5,17 +5,18 @@ import {
 } from "./modals";
 import KeybindManager from "./objects/KeybindManager";
 import { clientState } from "./objects/MuseumState";
+import { editorState } from "./objects/EditorState";
 
 const keybindManager = new KeybindManager();
 keybindManager.addKeybind(
   "arrowright",
   () => clientState.nextFile(),
-  "Next file in folder"
+  "Next file"
 );
 keybindManager.addKeybind(
   "arrowleft",
   () => clientState.previousFile(),
-  "Previous file in folder"
+  "Previous file"
 );
 keybindManager.addKeybind(
   "arrowup",
@@ -28,23 +29,43 @@ keybindManager.addKeybind(
   "Previous folder"
 );
 keybindManager.addKeybind(
-  "s",
+  "f",
   () => clientState.nextRootFolder(),
   "Toggle scenarios"
 );
 keybindManager.addKeybind(
   "r",
-  () => (clientState.params["Controls Mode"] = "rotate"),
-  "Bone rotate mode"
+  () => {
+    clientState.uiParams["Controls Mode"] = "rotate";
+    if (clientState.getMode() === "edit") {
+      editorState.editorParams["Model Controls"] = true;
+    }
+  },
+  "Rotate mode"
 );
 keybindManager.addKeybind(
   "t",
-  () => (clientState.params["Controls Mode"] = "translate"),
-  "Bone translate mode"
+  () => {
+    clientState.uiParams["Controls Mode"] = "translate";
+    if (clientState.getMode() === "edit") {
+      editorState.editorParams["Model Controls"] = true;
+    }
+  },
+  "Move mode"
+);
+keybindManager.addKeybind(
+  "s",
+  () => {
+    clientState.uiParams["Controls Mode"] = "scale";
+    if (clientState.getMode() === "edit") {
+      editorState.editorParams["Model Controls"] = true;
+    }
+  },
+  "Scale mode"
 );
 keybindManager.addKeybind(
   "0",
-  () => (clientState.params["Render This Frame"] = true),
+  () => (clientState.uiParams["Render This Frame"] = true),
   "Render the current frame as PNG"
 );
 keybindManager.addKeybind(
@@ -58,6 +79,9 @@ keybindManager.addKeybind(
   "escape",
   () => closeAllElements(),
   "Close all modals"
+);
+keybindManager.addKeybind("i", () =>
+  clientState.uiParams["View Structure 🔎"]()
 );
 
 const keybindsModal = document.getElementById("keybinds-modal");

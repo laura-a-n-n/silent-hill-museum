@@ -1,15 +1,4 @@
 import fs from "fs";
-import path from "path";
-import vm from "vm";
-
-const loadScript = (filePath: string) => {
-  const scriptContent = fs.readFileSync(filePath, "utf-8");
-  vm.runInThisContext(scriptContent, { filename: filePath });
-};
-
-// Load the required JS files
-loadScript(path.resolve(__dirname, "../../public/js/vendor/KaitaiStream.js"));
-loadScript(path.resolve(__dirname, "../../public/js/mdl.min.js"));
 
 // Mock fetch to just read the file synchronously
 const mockFetch = async (url: RequestInfo | URL) => {

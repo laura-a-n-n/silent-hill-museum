@@ -1,3 +1,5 @@
+export type Enum<T> = T[keyof T];
+
 export type TypedArray =
   | Int8Array
   | Uint8Array
@@ -10,6 +12,25 @@ export type TypedArray =
   | Float64Array
   | BigInt64Array
   | BigUint64Array;
+
+export type VertexLike = { x: number; y: number; z: number };
+export type BoundingBox = {
+  minX: number;
+  minY: number;
+  minZ: number;
+  maxX: number;
+  maxY: number;
+  maxZ: number;
+};
+
+export type Tuple<T, N extends number> = N extends N
+  ? number extends N
+    ? T[]
+    : TupleOf<T, N, []>
+  : never;
+type TupleOf<T, N extends number, R extends unknown[]> = R["length"] extends N
+  ? R
+  : TupleOf<T, N, [T, ...R]>;
 
 // Type to map indices to values
 export type IndexedValues<T extends readonly (readonly number[])[]> = {

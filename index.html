@@ -25,7 +25,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 
-<body>
+<body class="viewing">
   <div id="app"></div>
   <div id="overlay">
     <p>silent hill model museum</p>
@@ -33,10 +33,14 @@
       version <%= appVersion %>
     </p>
     <p><a id="open-about-modal" href="#">about this project</a></p>
-    <p style="color: #D676AE"><a href="https://dev.silenthillmuseum.org/">devlog</a> [new!]</a></p>
+    <p class="accent"><a href="https://dev.silenthillmuseum.org/">devlog</a> [new!]</p>
   </div>
   <div id="blur-background"></div>
   <div id="about-modal" class="modal">
+    <div class="about-modal-header">
+      <img alt="Silent Hill Museum" src="/images/wordart.png" />
+      <img alt="The mysterious music box from Silent Hill 2" src="/images/org.mdl.png" />
+    </div>
     <h1>what is this project?</h1>
     <p>
       this is a historical archive of a file format in silent hill.
@@ -57,16 +61,12 @@
     <p>play around with the different options and explore the museum!</p>
     <h1>is it finished?</h1>
     <p>
-      no, there is still a lot of mystery. i would absolutely love if you can contribute
-      on <a href="https://github.com/laura-a-n-n/silent-hill-museum">github</a>.
+      it's close, but there is still a lot of mystery. i would absolutely love if you can
+      contribute on <a href="https://github.com/laura-a-n-n/silent-hill-museum">github</a>.
     </p>
     <h1>what features are planned?</h1>
     <p>
-      a future goal is to enable editing of the mdl format, so you can import
-      edited assets into the game.
-    </p>
-    <p>
-      another goal is to add more file formats, including maps and animations,
+      a future goal is to add more file formats, including maps and animations,
       and formats for other games in the silent hill series.
     </p>
     <h1>how does it work?</h1>
@@ -118,7 +118,8 @@
     </blockquote>
     <h1>who made this?</h1>
     <p>
-      right now, it's just me, <a href="https://github.com/laura-a-n-n">laura ann</a>.
+      team silent created all of the amazing art you see here.
+      <a href="https://github.com/laura-a-n-n">laura ann</a> wrote the code for this website.
       but i couldn't have done this without the efforts of some people on the internet,
       whose resources have been invaluable:
     </p>
@@ -243,9 +244,54 @@
     </div>
   </div>
   <div id="webgl-not-supported-modal" class="modal"></div>
-  <p id="keybinds-note">press <kbd>k</kbd> to see keybinds</p>
-  <script src="/js/vendor/KaitaiStream.js"></script>
-  <script src="/js/mdl.min.js"></script>
+  <div id="quick-modal" class="modal"></div>
+  <div class="flexbox-container flex pointer-events-none">
+    <div id="sidebar-wrapper">
+      <div id="sidebar-container">
+        <div id="sidebar" class="lil-gui root ui">
+          <div class="sidebar-header title">
+            Edit View ✨
+          </div>
+          <div class="content">
+            <p>
+              welcome to <strong>edit mode</strong>!
+              here you can make your own models in mdl format and explore the file structure.
+            </p>
+            <p>
+              drag & drop any <a href="https://en.wikipedia.org/wiki/GlTF">gltf/glb model</a> onto the page.
+              this will edit the mdl file, effectively swapping the model.
+            </p>
+            <p>
+              (alternatively, use the file picker here.)
+            </p>
+            <input type="file" id="glb-filepicker" class="filepicker" name="file" accept=".glb,.gltf">
+            <div class="sidebar-buttons"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="placeholder flex output-log-wrapper">
+      <div id="console" class="output-log ui">
+        <p>import logging goes here...</p>
+        <p class="info">we don't see the files you send. everything runs locally on the browser.</p>
+      </div>
+    </div>
+    <div id="ui-container">
+    </div>
+  </div>
+  <footer>
+    <p id="keybinds-note">press <kbd>k</kbd> to see keybinds</p>
+    <p id="mode-indicator">
+      <span class="viewing-mode">
+        <img src="images/fa-eye.svg" alt="Eye" class="accent">
+        &nbsp;you are in&nbsp;<span class="mode-text accent">viewing mode</span>
+      </span>
+      <span class="edit-mode">
+        <img src="images/fa-atom.svg" alt="Atom" class="accent-complement">
+        &nbsp;you are in&nbsp;<span class="mode-text accent-complement">edit mode</span>
+      </span>
+    </p>
+  </footer>
   <script type="module" src="/src/main.ts"></script>
 </body>
 

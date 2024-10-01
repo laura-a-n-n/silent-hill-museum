@@ -15,6 +15,7 @@ const uiDescriptions: {
   keybindsModal: { open: false, element: undefined },
   contentWarningModal: { open: false, element: undefined },
   webglNotSupportedModal: { open: false, element: undefined },
+  quickModal: { open: false, element: undefined },
 };
 
 const uiQueue: { elementKey: string; open?: boolean }[] = [];
@@ -62,6 +63,10 @@ export const initializeModals = () => {
   if (!(webglNotSupportedModal instanceof HTMLDivElement)) {
     throw Error("Did not find the support message modal!");
   }
+  const quickModal = document.getElementById("quick-modal");
+  if (!(quickModal instanceof HTMLDivElement)) {
+    throw Error("Did not find the quick modal!");
+  }
   addUiElement("aboutModal", aboutModal);
   addUiElement("blurBackground", blurBackground);
   addUiElement("disclaimerModal", disclaimerModal);
@@ -69,6 +74,7 @@ export const initializeModals = () => {
   addUiElement("contentWarningModal", contentWarningModal);
   addUiElement("webglNotSupportedModal", webglNotSupportedModal);
   addUiElement("blenderExportModal", blenderExportModal);
+  addUiElement("quickModal", quickModal);
   openAboutModal.addEventListener("click", () => {
     toggleWithBackground("aboutModal", true);
   });
@@ -206,4 +212,21 @@ export const showNotSupportedModal = (glVersion = 0, queue = true) => {
   } else {
     toggleWithBackground("webglNotSupportedModal", true);
   }
+};
+
+export const showQuickModal = (html?: string, className?: string) => {
+  const element = uiDescriptions.quickModal.element;
+  if (!element) {
+    throw Error("Could not find quick modal element!");
+  }
+  if (html !== undefined) {
+    element.innerHTML = html;
+  }
+  element.className = "modal";
+  element.role = "button";
+  if (className) {
+    element.classList.add(className);
+  }
+  pushToQueue("quickModal", true);
+  return element;
 };
