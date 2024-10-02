@@ -55,13 +55,15 @@ export default class ImageLibrary {
     this.idCounter = 0;
   }
 
-  public registerImage(props?: Partial<ImageData>) {
-    const found = this.findByProperty(
-      props?.materialIndex ?? -1,
-      "materialIndex"
-    );
-    if (found) {
-      return this.map[found];
+  public registerImage(props?: Partial<ImageData>, overrideCache = false) {
+    if (!overrideCache) {
+      const found = this.findByProperty(
+        props?.materialIndex ?? -1,
+        "materialIndex"
+      );
+      if (found) {
+        return this.map[found];
+      }
     }
     this.map[this.idCounter++] = props ?? {};
     return props;

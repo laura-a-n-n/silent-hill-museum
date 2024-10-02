@@ -1,6 +1,10 @@
 import { Vector3, Quaternion, Matrix4, Object3D } from "three";
-import { sharedSerializationData } from "../write";
-import type { ModelPropertyDiff, CreationPayload } from "../write-worker";
+import { applyUpdate, sharedSerializationData } from "../write";
+import type {
+  ModelPropertyDiff,
+  CreationPayload,
+  TextureInfo,
+} from "../write-worker";
 import {
   ModelParams,
   Autoscale,
@@ -8,12 +12,14 @@ import {
   SilentHillModelTypes,
 } from "./SerializableModel";
 import { clientState } from "./MuseumState";
+import logger from "./Logger";
 
 export default class EditorState {
   public editorParams = {
     "Model Type": SilentHillModelTypes.BaseModel,
     "Auto-Scale": Autoscale.BoundingBox,
     "Flip Y": false,
+    "Transparent Parts": true,
     "Bonemap Method": BonemapMethod["Collapse"],
     "Collapse Target": 0,
     "Model Scale": 1,
@@ -44,6 +50,7 @@ export default class EditorState {
       bonemapType: this.editorParams["Bonemap Method"],
       bonemap: sharedSerializationData.bonemap,
       bonemapCollapseTarget: this.editorParams["Collapse Target"],
+      renderTransparentPrimitives: clientState.uiParams["Render Transparent"],
     });
   }
   public updateSerializationParams(
@@ -59,15 +66,19 @@ export default class EditorState {
   }
 
   public initializePropertyDiff(): ModelPropertyDiff {
+    const blankDiff = {
+      accumulatedTransform: this.getInitialAccumulatedTransform(),
+    };
+    this.modelPropertyDiff = blankDiff;
+    return blankDiff;
+  }
+
+  private getInitialAccumulatedTransform() {
     const position = new Vector3();
     const quaternion = new Quaternion();
     const scale = new Vector3(1, 1, 1);
     new Matrix4().decompose(position, quaternion, scale);
-    const blankDiff = {
-      accumulatedTransform: { position, quaternion, scale },
-    };
-    this.modelPropertyDiff = blankDiff;
-    return blankDiff;
+    return { position, quaternion, scale };
   }
 
   public serializerNeedsUpdate() {
@@ -77,6 +88,12 @@ export default class EditorState {
   public resetSerializationState() {
     this.initializePropertyDiff();
     sharedSerializationData.appliedTransform = undefined;
+  }
+
+  public clearTransform() {
+    this.modelPropertyDiff.transform = undefined;
+    this.modelPropertyDiff.accumulatedTransform =
+      this.getInitialAccumulatedTransform();
   }
 
   public accumulateTransform(transform?: Matrix4) {
@@ -110,6 +127,7 @@ export default class EditorState {
         quaternion: accumulatedTransform.quaternion.clone(),
         scale: accumulatedTransform.scale.clone(),
       },
+      textures: this.modelPropertyDiff.textures,
     };
   }
 
@@ -119,6 +137,35 @@ export default class EditorState {
 
   public setOnUpdate(onUpdate?: () => void) {
     this.onUpdate = onUpdate;
+  }
+
+  public async swapTexture(index: number, file: File) {
+    if (!file.type.includes("image")) {
+      return;
+    }
+    const promise = new Promise<HTMLImageElement>(async (resolve, reject) => {
+      const image = new Image();
+
+      image.src = URL.createObjectURL(file);
+      const buffer = await file.arrayBuffer();
+      image.onload = async () => {
+        const texture: TextureInfo = {
+          buffer,
+          mime: file.type,
+          width: image.width,
+          height: image.height,
+        };
+        this.modelPropertyDiff.textures ??= new Map();
+        this.modelPropertyDiff.textures.set(index, texture);
+        applyUpdate();
+        resolve(image);
+      };
+      image.onerror = (error) => {
+        logger.error(error);
+        reject(error);
+      };
+    });
+    return promise;
   }
 
   public modelPropertyDiff: ModelPropertyDiff = this.initializePropertyDiff();

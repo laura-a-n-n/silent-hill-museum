@@ -226,7 +226,7 @@ export default class EditMode {
       return;
     }
     editorState.updateSerializationParams();
-    editorState.initializePropertyDiff();
+    editorState.clearTransform();
     fileCallback(file);
   }
 }

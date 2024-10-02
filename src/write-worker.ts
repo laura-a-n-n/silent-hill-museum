@@ -54,7 +54,15 @@ export type ModelPropertyDiff = {
     quaternion: Quaternion;
     scale: Vector3;
   };
+  textures?: TextureMap;
 };
+export type TextureInfo = {
+  buffer: ArrayBuffer;
+  mime: string;
+  width: number;
+  height: number;
+};
+export type TextureMap = Map<number, TextureInfo>;
 
 /**
  * The creation payload is cached and reused to prevent sending

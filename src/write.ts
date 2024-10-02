@@ -53,7 +53,13 @@ const gltfSerializationWorker = (message: WorkerMessage) => {
   logger.debug("Calling worker...");
   writeWorker.postMessage(
     message,
-    message.type === "create" ? [message.body.bytes, message.body.baseFile] : []
+    message.type === "create"
+      ? [message.body.bytes, message.body.baseFile]
+      : [
+          ...[...(message.body.diff.textures?.values() ?? [])].map(
+            (texture) => texture.buffer
+          ),
+        ]
   );
   writeWorker.onmessage = (event) => {
     const { log, logLevel, output, error, sharedData } = event.data;

@@ -36,6 +36,7 @@ export const WrapMap = {
 };
 
 export const MIN_SIGNED_INT = -0x8000;
+export const isPowerOfTwo = (n: number) => Math.log2(n) % 1 === 0;
 
 /**
  * Gives a remainder that is never negative.
