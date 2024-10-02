@@ -1,6 +1,8 @@
 import { Material, Mesh, Object3D, Texture } from "three";
 import logger from "./Logger";
 import { showQuickModal } from "../modals";
+import { acceptFileDrop } from "../utils";
+import { editorState } from "./EditorState";
 
 export const TextureViewerStates = {
   Inactive: "Inactive",
@@ -123,8 +125,14 @@ export default class TextureViewer {
         if (this.seenMaps.indexOf(data) >= 0) {
           return;
         }
-        this.seenMaps.push(data);
+        const index = this.seenMaps.push(data) - 1;
         const image = this.renderUint8ArrayAsImage(data, width, height);
+        acceptFileDrop(image, async (file) => {
+          const texture = await editorState.swapTexture(index, file);
+          if (texture?.src) {
+            image.src = texture?.src;
+          }
+        });
         this.attachPointerListener(image);
         this.contentWindow.appendChild(image);
       });

@@ -36,6 +36,7 @@ import Squish, { SquishFlags } from "../wasm/libsquish/dxt";
 import type { BoundingBox, Enum, VertexLike } from "../types/common";
 import type { ModelPropertyDiff } from "../write-worker";
 import { Bonemap, sharedSerializationData } from "../write";
+import { isPowerOfTwo } from "three/src/math/MathUtils.js";
 
 const TEXTURE_ID_SPACE_START = 53895;
 const SPRITE_ID_SPACE_START = 99686;
@@ -329,6 +330,7 @@ export default class SerializableModel {
       model.header.characterId
     ) {
       this.params.mapToSelf = true;
+      this.params.bonemapType = BonemapMethod["By Name"];
       logger.debug("Detected an in-house museum model!");
       logger.debug(`Editing ${meshes[0].userData.silentHillModel.name}`);
     }
@@ -1025,29 +1027,42 @@ export default class SerializableModel {
       return material;
     }
 
-    const model = this.model;
-
     // create a new material
     materialIndex = seenMaterials.length;
     seenMaterials.push(material);
 
+    const model = this.model;
+    const textureContainers = model.textureData.textures;
+    const textureMetadata = model.modelData.textureMetadata;
+    let textureId =
+      model.modelData.textureMetadata.mainTextureIds[materialIndex];
+    const textureContainerIndex = model.textureData.textures.findIndex(
+      (textureContainer) => textureContainer.textureId === textureId
+    );
+    let textureContainer: SilentHillModel.TextureContainer | undefined =
+      model.textureData.textures[textureContainerIndex];
+    let oldTextureContainerSize = 0;
+
     let pixels: ByteArray;
     let width, height;
-    if (map?.source.data.data instanceof Uint8ClampedArray) {
-      pixels = map.source.data.data;
-      width = map.source.data.width;
-      height = map.source.data.height;
-    } else if (map?.source.data.data instanceof Uint8Array) {
-      pixels = Uint8ClampedArray.from(map.source.data.data);
-      width = map.source.data.width;
-      height = map.source.data.height;
-    } else if (
-      !map ||
-      !(
-        map.source.data instanceof ImageBitmap ||
-        map.source.data instanceof HTMLImageElement
-      )
-    ) {
+    let mapData = map?.source.data;
+    const swapTexture = this.appliedEdits?.textures?.get(materialIndex ?? -1);
+    if (swapTexture) {
+      width = swapTexture.width;
+      height = swapTexture.height;
+      mapData = await createImageBitmap(
+        new Blob([swapTexture.buffer], { type: swapTexture.mime })
+      );
+    }
+    if (mapData?.data instanceof Uint8ClampedArray) {
+      pixels = mapData.data;
+      width = mapData.width;
+      height = mapData.height;
+    } else if (mapData?.data instanceof Uint8Array) {
+      pixels = Uint8ClampedArray.from(mapData.data);
+      width = mapData.width;
+      height = mapData.height;
+    } else if (!map || !(mapData instanceof ImageBitmap)) {
       if (
         material instanceof MeshStandardMaterial ||
         material instanceof MeshBasicMaterial
@@ -1066,24 +1081,32 @@ export default class SerializableModel {
         height = 8;
       } else throw new UnhandledCaseError("Material map is not recognized");
     } else {
-      width = map.source.data.width;
-      height = map.source.data.height;
-      if (width * height >= 1 << 20) {
+      width ??= mapData.width;
+      height ??= mapData.height;
+      const resolutionWarning = width * height >= 1 << 20;
+      const powerOfTwoWarning = !isPowerOfTwo(width) || !isPowerOfTwo(height);
+      if (powerOfTwoWarning) {
+        logger.warn(
+          `A texture of size ${width}, ${height} does not have power-of-two dimensions.`
+        );
+      } else if (resolutionWarning) {
         logger.warn(
           `A texture of size ${width}, ${height} is large for this game.`
         );
+      }
+      if (resolutionWarning || powerOfTwoWarning) {
         logger.warn("Resizing so that the maximum dimension is 512.");
         const scaleFactor = width > height ? 512 / width : 512 / height;
         width = Math.pow(2, Math.round(Math.log2(width * scaleFactor)));
         height = Math.pow(2, Math.round(Math.log2(height * scaleFactor)));
         [width, height];
         this.imageLibrary ??= new ImageLibrary();
-        pixels = this.imageLibrary.resize(map.source.data, width, height, {
+        pixels = this.imageLibrary.resize(mapData, width, height, {
           imageSmoothingQuality: "high",
         });
       } else {
         pixels = getPixelsFromCanvasImageSource(
-          map.source.data,
+          mapData,
           (this.imageLibrary ?? new ImageLibrary()).canvas
         );
       }
@@ -1105,22 +1128,29 @@ export default class SerializableModel {
       materialIndex,
       "materialIndex"
     );
-    if (imageKey) {
+    if (swapTexture) {
+      logger.debug("Compressing swapped texture");
+    } else if (imageKey) {
       logger.debug(`Reusing cached material ${materialIndex}`);
     } else {
       logger.debug("Did not find image in cache, compressing");
     }
-    let compressed = imageLibrary?.get(imageKey)?.compressed;
+    let compressed = swapTexture
+      ? undefined
+      : imageLibrary?.get(imageKey)?.compressed;
     if (!compressed) {
-      compressed = imageLibrary?.registerImage({
-        compressed: await dxt.compress(
-          Uint8Array.from(pixels),
-          width,
-          height,
-          SquishFlags.DXT5
-        ),
-        materialIndex,
-      })?.compressed;
+      compressed = imageLibrary?.registerImage(
+        {
+          compressed: await dxt.compress(
+            Uint8Array.from(pixels),
+            width,
+            height,
+            SquishFlags.DXT5
+          ),
+          materialIndex,
+        },
+        true
+      )?.compressed;
     }
     if (!compressed) {
       logger.debug("Failed, using uncompressed");
@@ -1128,17 +1158,6 @@ export default class SerializableModel {
     }
     const dataSize = width * height;
     const dataSizeFull = dataSize + 16;
-
-    const textureContainers = model.textureData.textures;
-    const textureMetadata = model.modelData.textureMetadata;
-    let textureId =
-      model.modelData.textureMetadata.mainTextureIds[materialIndex];
-    const textureContainerIndex = model.textureData.textures.findIndex(
-      (textureContainer) => textureContainer.textureId === textureId
-    );
-    let textureContainer: SilentHillModel.TextureContainer | undefined =
-      model.textureData.textures[textureContainerIndex];
-    let oldTextureContainerSize = 0;
 
     if (textureContainer === undefined) {
       // need to create a new texture container
@@ -1207,7 +1226,6 @@ export default class SerializableModel {
       textureMetadata.mainTextureIds.push(textureId);
       newSpriteHeader.spriteId = 0;
       pair.spriteId = spriteId;
-      console.log(textureContainer);
     } else {
       // mdl already had a texture container here, so just modify it
       const textureMetadata = model.modelData.textureMetadata;
