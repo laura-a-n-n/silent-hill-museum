@@ -451,8 +451,11 @@ clientState.setOnModeUpdate((oldMode) => {
 });
 
 let lightGroup: Group | undefined;
+let renderIsFinished = true;
 
 const render = () => {
+  renderIsFinished = false;
+
   const modelCallback = (
     model: SilentHillModel | undefined,
     cleanupResources = true
@@ -702,6 +705,11 @@ const render = () => {
     });
 
     function animate() {
+      if (!renderIsFinished) {
+        // prevent animation loop if render is not finished
+        // todo: maybe add a loading indicator
+        return;
+      }
       const delta = clock.getDelta() * 120; // targeting 120 fps
       modelTransformGizmo.render(
         clientState.getMode() === "edit" &&
@@ -741,6 +749,7 @@ const render = () => {
         clientState.uiParams["Render This Frame"] = false;
       }
     }
+    renderIsFinished = true;
     renderer.setAnimationLoop(animate);
     return group;
   };
